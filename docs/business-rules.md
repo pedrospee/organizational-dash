@@ -1,100 +1,77 @@
 # Business Rules
 
-Approved rules. Each rule must be covered by automated tests when it is implemented.
-The phase in brackets is where the rule is first implemented.
+Every approved financial rule, with the phase that implements it. A rule is ✅ only when automated tests cover it; the test file is listed.
 
 ## General
 
-- **BR-01** The system informs and simulates. It never makes financial decisions automatically.
-  Debt, cash flow, liquidity, future commitments and payment capacity are priority metrics.
-- **BR-02** A ledger transaction always represents something that happened. Planned items
-  never count as actual. [1, 5]
-- **BR-03** Every transaction must keep the ledger balanced. Unbalanced or otherwise invalid
-  transactions are rejected. [1]
-- **BR-04** Values shown to the user are labelled **Actual** or **Estimated** whenever both
-  can appear. [3+]
-- **BR-05** Only fictitious data is used during development, in seed data and in tests.
+| ID | Rule | Status |
+| --- | --- | --- |
+| BR-01 | The system informs and simulates; it never makes financial decisions. Debt, cash flow, liquidity, future commitments and payment capacity are priority metrics. | Principle |
+| BR-02 | A ledger transaction is always something that happened. Planned items never count as actual. | ✅ Structural (ledger has no "planned" state) · planning in Phase 5 |
+| BR-03 | Every transaction keeps the ledger balanced; invalid transactions are rejected. | ✅ `transaction-validation.test.ts` |
+| BR-04 | Values that can be either real or calculated are labelled **Actual** or **Estimated**. | Phase 3+ |
+| BR-05 | Only fictitious data in code, seeds and tests. | ✅ `test-fixtures.ts` |
 
 ## Money and currencies
 
-- **BR-10** Money is stored as integer minor units with its currency. No floating point. [1]
-- **BR-11** Supported currencies: EUR and BRL. BRL is a native currency and is never
-  permanently converted to EUR. [1]
-- **BR-12** Reporting currency: EUR by default (net worth, dashboard, projections, global
-  indicators). Designed to be configurable later. [1]
-- **BR-13** Rate convention: `EUR/BRL = 6.00` means `1 EUR = 6 BRL`, everywhere. [1]
-- **BR-14** Division is deterministic. The rounding remainder is distributed explicitly;
-  `€1,000 / 3 = €333.33 + €333.33 + €333.34` (remainder on the last part). [1]
-- **BR-15** A same-currency transaction stores only its own currency. An exchange rate is
-  stored only for real cross-currency operations (EUR → BRL, BRL → EUR, BRL purchase paid
-  from a EUR account). [1]
-- **BR-16** For a real conversion where both legs are known, the actual leg amounts take
-  precedence over a recalculated rate. Fees are recorded separately. [1]
-- **BR-17** Current reports use the rate for the moment of the query; historical analysis
-  uses the historical rate for the date. The original transaction amount is never replaced. [1, 8]
-- **BR-18** A conversion is neither income nor expense. [1]
-- **BR-19** Changes in reporting-currency value caused only by rate movements are an
-  **FX effect**, never income or expense. Analytics separate cash flow, operational result,
-  FX effect and investment performance where relevant. [8]
+| ID | Rule | Status |
+| --- | --- | --- |
+| BR-10 | Money is integer minor units (`bigint`) plus currency. No floating point. | ✅ `money.test.ts` |
+| BR-11 | EUR and BRL are both native; BRL is never permanently converted to EUR. | ✅ `exchange-rate.test.ts` |
+| BR-12 | Reporting currency is EUR (net worth, dashboard, projections), configurable later. | Phase 8 |
+| BR-13 | `EUR/BRL = 6.00` means `1 EUR = 6 BRL`, everywhere. | ✅ `exchange-rate.test.ts` |
+| BR-14 | Division is deterministic; the remainder goes explicitly to the last parts: €1,000 / 3 = 333.33 + 333.33 + 333.34. Conversions round half away from zero. | ✅ `money.test.ts`, `decimal.test.ts` |
+| BR-15 | Same-currency transactions store one currency only. A rate is stored only for real cross-currency operations (conversion, foreign purchase). | ✅ `transaction-validation.test.ts`, `financial-scenarios.test.ts` |
+| BR-16 | In a real conversion, the actual amounts of both legs are the truth; the executed rate is derived from them. Fees are recorded separately. | ✅ `financial-scenarios.test.ts` |
+| BR-17 | Current reports use the rate in force today; historical analysis uses the rate in force on that date. The original amount is never replaced. | ✅ `exchange-rate-history.test.ts` |
+| BR-18 | A conversion is neither income nor expense (its fee is an expense). | ✅ `financial-scenarios.test.ts` |
+| BR-19 | Value changes caused only by rate movements are an **FX effect**, never income or expense. Analytics separate cash flow, operating result, FX effect and investment performance. | Mechanism ✅ `exchange-rate-history.test.ts` · reporting Phase 8 |
 
 ## Accounts and transfers
 
-- **BR-20** Balances are derived from the ledger, starting from an opening-balance entry. [1]
-- **BR-21** An internal transfer changes account balances but produces zero income, zero
-  expense and no change in net worth. [1]
-- **BR-22** Overdraft is a negative balance of the bank account itself, with an overdraft
-  limit. No separate liability account. The system derives used overdraft, available
-  overdraft and remaining limit. [2]
-- **BR-23** Free editing of past transactions is allowed in the MVP (`createdAt`,
-  `updatedAt`). Edits must keep the ledger balanced and derived values are recalculated. [2]
+| ID | Rule | Status |
+| --- | --- | --- |
+| BR-20 | Balances are derived from the ledger, starting from an opening-balance transaction. | ✅ `financial-scenarios.test.ts` |
+| BR-21 | An internal transfer changes balances with zero income, zero expense and unchanged total. Transfers are only between own asset accounts in the same currency. | ✅ `financial-scenarios.test.ts`, `transaction-validation.test.ts` |
+| BR-22 | Overdraft is a negative balance of the bank account itself, with a limit; no separate liability. Used, available and remaining overdraft are derived. | Negative balance ✅ · limit in Phase 2 |
+| BR-23 | Free editing of past transactions in the MVP (`createdAt`, `updatedAt`); edits must keep the ledger balanced and derived values are recalculated. | Phase 2 |
 
 ## Debts
 
-- **BR-30** Every obligation is a liability account. `DebtTerms` (creditor, original
-  amount, interest information, minimum payment, priority, due date) describe it; they
-  never hold a second balance. [3]
-- **BR-31** Debt types share one behaviour driven by liability nature and terms: credit
-  card, overdraft, bank loan, financing, informal debt, personal debt, other liability. [3]
-- **BR-32** Persisted debt statuses: `ACTIVE`, `RENEGOTIATED`, `CANCELLED`, `PAID_OFF`.
-  Overdue, progress and percentage paid are derived. [3]
-- **BR-33** A debt payment decreases cash and decreases the liability. It never creates a
-  second expense for an already recorded obligation. [3]
-- **BR-34** Interest is reconciled from statements, not computed in the ledger:
-  `previous balance + interest + charges − payment = current balance`. Observed interest
-  may be recorded separately. Mathematical interest is used only in simulators,
-  projections and scenarios. [3, 6]
+| ID | Rule | Status |
+| --- | --- | --- |
+| BR-30 | Every obligation is a liability account. `DebtTerms` describe it and never hold a second balance. | Liability accounts ✅ · terms in Phase 3 |
+| BR-31 | All debt types (credit card, overdraft, loan, financing, informal, personal, other) share behaviour driven by account nature and terms. | ✅ `getAccountNature` · terms in Phase 3 |
+| BR-32 | Persisted statuses: `ACTIVE`, `RENEGOTIATED`, `CANCELLED`, `PAID_OFF`. Overdue, progress and % paid are derived. | Phase 3 |
+| BR-33 | A payment decreases cash and the liability, and never creates a second expense. | ✅ card payments · debt payments in Phase 3 |
+| BR-34 | Interest is reconciled from statements (`previous + interest + charges − payment = current`), not computed in the ledger. Calculated interest is only for simulations. | Phase 3, 6 |
 
 ## Credit cards
 
-- **BR-40** A card purchase creates a liability; it does not reduce the bank balance. [2, 4]
-- **BR-41** Installment purchases: the budget receives the installment amount per month;
-  the committed limit and the liability equal the total amount still unpaid; the
-  installment schedule controls due dates. Limit is released as installments are paid. [4]
-- **BR-42** A purchase belongs to the statement whose closing period contains the purchase
-  date. A purchase on the closing day belongs to the statement being closed. Configurable
-  per card later. [4]
-- **BR-43** Financial periods use local dates (`YYYY-MM-DD`), never time or time zone. [1]
+| ID | Rule | Status |
+| --- | --- | --- |
+| BR-40 | A card purchase creates a liability; the bank balance is unchanged. | ✅ `financial-scenarios.test.ts` |
+| BR-41 | Installments: the budget gets the installment amount each month; the committed limit and the liability equal the total still unpaid; the schedule controls due dates. | Phase 4 |
+| BR-42 | A purchase belongs to the statement whose period contains its date; a purchase on the closing day belongs to the statement being closed. Configurable per card later. | Phase 4 |
+| BR-43 | Financial periods use local dates (`YYYY-MM-DD`), never time or time zone. | ✅ `local-date.test.ts` |
 
 ## Goals
 
-- **BR-50** A goal is by default a **virtual allocation** of existing money, not a transfer.
-  A goal may be linked to an account; the link never duplicates money. The system
-  distinguishes physical money from virtual allocations. [7]
+| ID | Rule | Status |
+| --- | --- | --- |
+| BR-50 | A goal is a virtual allocation by default. It may be linked to an account without duplicating money. Physical money and virtual allocations are distinguished. | Phase 7 |
 
-## Future-ready rules
+## Future-ready
 
-These are not in the MVP, but the ledger must support them without structural changes.
+The ledger must support these without structural change.
 
-- **BR-60** Refund: economically reverses the original expense.
-- **BR-61** Reversal: corrects an operation without deleting financial history.
-- **BR-62** Cashback: recorded as an inflow, not as a silent reduction of the original expense.
-- **BR-63** Split transaction: one transaction, several categories; category amounts sum
-  exactly to the transaction amount.
-- **BR-64** Reconciliation: compare system balance with actual bank balance and record an
-  explicit adjustment for any difference. Never correct a balance silently.
-- **BR-65** "Available to Spend" = current available cash − upcoming obligations − planned
-  debt payments − required goal contributions − minimum reserve. Always shown as an
-  estimate, with its assumptions. Never labelled "safe".
-- **BR-66** Monthly snapshots are historical photographs for analytics. They never replace
-  the ledger.
-- **BR-67** Scenarios are simulations and never change real data.
+| ID | Rule | Status |
+| --- | --- | --- |
+| BR-60 | Refund: economically reverses the original expense. | Later |
+| BR-61 | Reversal: corrects an operation without deleting history. | Later |
+| BR-62 | Cashback: an inflow, not a silent reduction of the original expense. | Later |
+| BR-63 | Split transaction: several categories summing exactly to the total. | Supported by postings · UI later |
+| BR-64 | Reconciliation: compare system and bank balances and record an explicit adjustment; never correct silently. | After MVP |
+| BR-65 | **Available to Spend** = available cash − upcoming obligations − planned debt payments − required goal contributions − minimum reserve. Always an estimate with its assumptions; never called "safe". | Phase 8–9 |
+| BR-66 | Monthly snapshots are historical photographs for analytics; they never replace the ledger. | Phase 8 |
+| BR-67 | Scenarios are simulations and never change real data. | Phase 6+ |

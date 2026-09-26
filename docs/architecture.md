@@ -1,114 +1,100 @@
 # Architecture
 
-Status: approved on 2026-09-26. Phase 0 (foundation) implemented.
+A modular monolith with a pure TypeScript financial core and an internal double-entry ledger.
+Decisions approved on 2026-09-26.
 
-## Goals
+## Three concerns, never mixed
 
-Personal Finance Manager is a single-user financial planning system for EUR and BRL.
-It keeps three concerns strictly apart:
-
-| Layer | Question it answers | Examples |
+| Layer | Question | Examples |
 | --- | --- | --- |
-| **Ledger** | What actually happened? | Salary received, rent paid, transfer, debt payment |
+| **Ledger** | What actually happened? | Salary received, transfer, card purchase, debt payment |
 | **Planning** | What is expected to happen? | Expected salary, future installment, planned trip |
 | **Analytics** | What does it mean? | Net worth, cash flow, debt evolution, projections |
 
-A ledger transaction is always a fact. Planned items live in the planning layer and are
-*matched* to real transactions when they happen.
+A ledger transaction is always a fact. Planned items live in planning and are *matched* to real transactions when they happen.
 
-## Style
-
-Modular monolith with a pure financial core.
+## Layers
 
 ```text
-domain (pure rules)  ←  application (use cases)  ←  infrastructure (DB) / http (API) / web (UI)
+core / domain (pure rules)  ←  application (use cases)  ←  infrastructure (DB) · http (API) · web (UI)
 ```
 
-- **domain** — pure TypeScript. No database, HTTP, React, Hono or external APIs.
-  All important financial rules live here and are unit-tested.
-- **application** — use cases that orchestrate domain rules and repositories.
-- **infrastructure** — SQLite access (Drizzle), configuration, backups.
-- **http** — thin Hono routes; no business rules.
-- **web** — React + Vite UI (introduced when the first UI is needed).
+- **core** — pure TypeScript: no database, HTTP, React, Hono or external APIs. Every important financial rule lives and is tested here.
+- **application** — use cases that combine core rules with repositories (Phase 2).
+- **infrastructure** — SQLite via Drizzle, configuration, backups.
+- **http** — thin Hono routes on `127.0.0.1`; no business rules.
+- **web** — React + Vite UI.
 
-Dependencies point inward only. The domain never imports from outer layers.
+Dependencies point inward only.
 
 ## Ledger model: internal double-entry
 
-Every transaction produces two or more postings whose amounts sum to zero **per currency**.
+Every transaction has two or more postings that sum to zero **in each currency**. Users never see debit/credit; the UI speaks of income, expense, transfer, purchase, payment and conversion. Transaction factories translate those human operations into postings.
 
 ```text
-Card purchase €500      Expense:Food   +500   |  Credit Card   −500
-Card statement payment  Credit Card    +500   |  Bank Account  −500
-Internal transfer €300  Account B      +300   |  Account A     −300
+Card purchase €500       Expense:Food  +500   Credit Card  −500
+Card payment €500        Credit Card   +500   Bank         −500
+Internal transfer €300   Account B     +300   Account A    −300
 ```
 
-- Income and expense exist only when one side of the transaction is a category.
-  An internal transfer therefore never creates income or expense.
-- Cross-currency operations balance each currency separately through an internal
-  exchange account; fees are a separate posting (`Expense:Fees`).
-- **Users never see debit/credit.** The UI speaks in human terms: income, expense,
-  transfer, purchase, payment, debt, conversion, investment.
+- Income and expense exist only when a posting targets a category, so transfers can never create them.
+- Cross-currency operations balance each currency through an `EXCHANGE_CLEARING` posting and record the executed rate. Fees are a separate expense posting.
+- Balances are derived from postings, never stored as the source of truth.
 
-See [financial-model.md](financial-model.md) for entities and
-[business-rules.md](business-rules.md) for the rules.
+Details: [financial-model.md](financial-model.md) · Rules: [business-rules.md](business-rules.md)
 
-## Repository structure
+## Source structure
 
 Folders are created only when a phase needs them.
 
 ```text
 src/
-├── core/              (Phase 1) money, currency, exchange-rate, ledger — pure, shared
-├── modules/<feature>/ (Phase 2+) <feature>.domain.ts · .service.ts · .repository.ts · tests
+├── core/
+│   ├── money/            Currency, Money (bigint minor units), allocation
+│   ├── exchange/         ExchangeRate, conversion, executed rates, rate history
+│   ├── ledger/           Account, Category, Transaction, validation, factories, balances
+│   ├── decimal.ts        exact decimal parsing and rounding
+│   ├── local-date.ts     YYYY-MM-DD dates without time zone
+│   └── domain-error.ts   DomainError with stable codes
 ├── infrastructure/
-│   └── config/        environment loading and validation
-├── http/              (Phase 2) thin routes
-└── main.ts            application bootstrap
-docs/                  architecture and rules
+│   └── config/           environment validation
+└── main.ts               bootstrap
 ```
 
-Tests live next to the code they test (`*.test.ts`). Fixtures contain fictitious data only.
+From Phase 2: `src/modules/<feature>/` (use cases and repositories), `src/infrastructure/database/`, `src/http/`.
 
 ## Stack
 
-| Area | Choice | Reason |
+| Area | Choice | Why |
 | --- | --- | --- |
-| Runtime | Node.js 24 LTS (`.nvmrc`) | Long-term support |
-| Package manager | npm | Already available; single package |
-| Language | TypeScript, `strict` + `noUncheckedIndexedAccess` | Catch errors at compile time |
-| Execution | Node native type stripping (`node src/main.ts`) | No extra runner dependency |
-| Money | Integer minor units (`bigint`) | Never floating point |
-| Database | SQLite (local file) | Zero infrastructure, file-level backup, ACID |
-| ORM | Drizzle + better-sqlite3 | Typed, close to SQL, versioned migrations |
-| Validation | Zod | Validates external input, derives types |
-| Tests | Vitest | Fast, native TypeScript |
-| Lint / format | Biome | One tool instead of ESLint + Prettier |
-| API | Hono on `127.0.0.1` | Small, typed RPC client |
-| Frontend | React + Vite | Deferred until the first UI |
-| Secrets | `.env`, Gitleaks pre-commit hook, GitHub push protection | See [security.md](security.md) |
+| Runtime | Node.js 24 LTS | Long-term support; runs TypeScript natively (type stripping) |
+| Language | TypeScript `strict` + `noUncheckedIndexedAccess` | Errors caught at compile time |
+| Money | `bigint` minor units, decimal strings for rates | Never floating point |
+| Validation | Zod | External input and configuration |
+| Tests / lint | Vitest / Biome | Fast, minimal configuration |
+| Database (Phase 2) | SQLite + Drizzle + better-sqlite3 | Local file, ACID, typed, versioned migrations |
+| API (Phase 2) | Hono | Small, typed client |
+| UI | React + Vite | Introduced with the minimal UI |
+| Secrets | `.env`, Gitleaks pre-commit, GitHub push protection | See [security.md](security.md) |
 
-No other framework or library is added without an explicit, documented justification.
+No dependency is added without a documented reason.
 
 ## Roadmap
 
-| Phase | Scope |
-| --- | --- |
-| 0 | Foundation |
-| 1 | Financial core: Currency, Money, ExchangeRate (manual), ledger, Account, Category |
-| 2 | Persistence, accounts, transactions, manual rates, backup/export, minimal UI |
-| 3 | Debt management |
-| 4 | Credit cards (statements, installments) |
-| 5 | Planning + budget |
-| 6 | Debt payoff simulator (avalanche / snowball) |
-| 7 | Financial goals |
-| 8 | Analytics, snapshots, projections |
-| 9 | Dashboard |
-| 10 | Investments |
-| 11 | Automatic exchange rates, CSV/OFX import, Wise |
-| 12 | Advanced security and audit |
+| Phase | Scope | Status |
+| --- | --- | --- |
+| 0 | Foundation | ✅ Done |
+| 1 | Financial core: money, exchange rates, ledger | ✅ Done |
+| 2 | Persistence, accounts, transactions, manual rates, backup/export, minimal UI | Next |
+| 3 | Debt management | |
+| 4 | Credit cards: statements, installments | |
+| 5 | Planning and budget | |
+| 6 | Debt payoff simulator (avalanche / snowball) | |
+| 7 | Financial goals | |
+| 8 | Analytics, snapshots, projections | |
+| 9 | Dashboard | |
+| 10 | Investments | |
+| 11 | Automatic exchange rates, CSV/OFX import, Wise | |
+| 12 | Advanced security and audit | |
 
-After the MVP (phases 0–3): **reconciliation**, then **CSV import** (preview, validation,
-column mapping, duplicate detection, confirmation, idempotent re-import).
-
-Each phase has a limited scope, has tests, and is reviewed before the next one starts.
+After the MVP (phases 0–3): **reconciliation**, then **CSV import** (preview, validation, column mapping, duplicate detection, confirmation, idempotent re-import).

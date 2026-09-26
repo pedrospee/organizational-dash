@@ -1,63 +1,78 @@
 # Financial Model
 
-Conceptual model approved on 2026-09-26. Field lists are indicative; each phase finalises
-the entities it introduces.
+What is implemented in `src/core/` (Phase 1) and what later phases add.
 
-## Core (Phase 1)
+## Implemented (Phase 1)
 
 | Entity | Shape | Notes |
 | --- | --- | --- |
-| `Currency` | `EUR \| BRL` | |
-| `Money` | `{ amountMinor: bigint, currency }` | `€10.50 → 1050n` |
-| `ExchangeRate` | `{ baseCurrency, quoteCurrency, rate, effectiveDate, source, recordedAt }` | `rate` is a decimal string; `EUR/BRL 6.00` = 1 EUR is 6 BRL |
-| `Account` | `{ id, name, institution, kind, currency, status, overdraftLimit?, creditLimit?, createdAt, updatedAt }` | Balance is derived, never stored as truth |
-| `Category` | `{ id, name, nature: INCOME \| EXPENSE, parentId? }` | Categories are the income/expense side of the ledger |
-| `Transaction` | `{ id, date, description, type, fxDetail?, createdAt, updatedAt }` | `date` is a local `YYYY-MM-DD` |
-| `Posting` | `{ transactionId, accountId \| categoryId, amountMinor, currency }` | Postings sum to zero per currency |
+| `Currency` | `"EUR" \| "BRL"` | 2 minor-unit digits each |
+| `Money` | `{ amountMinor: bigint, currency }` | `€10.50 → 1050n`; parse with `moneyFromDecimal("10.50", "EUR")` |
+| `LocalDate` | `"YYYY-MM-DD"` | Validated calendar date, no time zone |
+| `ExchangeRate` | `{ baseCurrency, quoteCurrency, rate, effectiveDate, source, recordedAt }` | `rate` is an exact decimal string; `source` is `MANUAL` or `TRANSACTION` |
+| `Account` | `{ id, name, institution?, kind, currency }` | Nature (asset/liability) derived from `kind` |
+| `Category` | `{ id, name, nature: INCOME \| EXPENSE, parentId? }` | Currency-agnostic |
+| `Transaction` | `{ id, date, description, type, postings, exchangeRate? }` | `exchangeRate` only when two currencies are involved |
+| `Posting` | `{ target, amount }` | `target` is an account, a category or a system role |
 
-Account kinds: `BANK`, `WISE`, `CASH`, `CREDIT_CARD`, `LOAN`, `FINANCING`, `INFORMAL_DEBT`,
-`PERSONAL_DEBT`, `OTHER_LIABILITY`, `INVESTMENT`. Asset or liability nature is derived from the kind.
+**Account kinds** — assets: `BANK`, `WISE`, `CASH`, `INVESTMENT`; liabilities: `CREDIT_CARD`, `LOAN`, `FINANCING`, `INFORMAL_DEBT`, `PERSONAL_DEBT`, `OTHER_LIABILITY`.
 
-Transaction types (user-facing intent): `INCOME`, `EXPENSE`, `TRANSFER`, `CONVERSION`,
-`CARD_PAYMENT`, `DEBT_PAYMENT`, `OPENING_BALANCE`, `ADJUSTMENT`.
+**Transaction types** — `OPENING_BALANCE`, `INCOME`, `EXPENSE`, `TRANSFER`, `CARD_PAYMENT`, `CONVERSION`. `DEBT_PAYMENT` arrives in Phase 3 and `ADJUSTMENT` with reconciliation.
 
-## Posting examples
+**System posting roles** — `OPENING_BALANCE_EQUITY` (other side of a starting balance) and `EXCHANGE_CLEARING` (bridges the two currencies of an operation).
 
-| Operation | Postings |
-| --- | --- |
-| Salary €2,500 | Bank +2,500 · Income:Salary −2,500 |
-| Groceries €80 by debit | Expense:Food +80 · Bank −80 |
-| Card purchase €500 | Expense:Food +500 · Credit Card −500 |
-| Card payment €500 | Credit Card +500 · Bank −500 |
-| Transfer €300 | Account B +300 · Account A −300 |
-| Conversion €100 → R$600, fee €1 | EUR: Bank EUR −101 · FX +100 · Expense:Fees +1 — BRL: Wise BRL +600 · FX −600 |
+## Postings
 
-Sign convention: positive increases assets and expenses; negative increases liabilities,
-income and equity. The UI never shows these signs directly.
+Internal sign convention, never shown to users: positive increases assets and expenses; negative increases liabilities and income.
+
+| Operation | Factory | Postings |
+| --- | --- | --- |
+| Opening balance €1,000 | `createOpeningBalanceTransaction` | Bank +1,000 · Equity −1,000 |
+| Salary €2,500 | `createIncomeTransaction` | Bank +2,500 · Salary −2,500 |
+| Card purchase €500 | `createExpenseTransaction` | Food +500 · Card −500 |
+| Card payment €500 | `createCardPaymentTransaction` | Card +500 · Bank −500 |
+| Transfer €300 | `createTransferTransaction` | B +300 · A −300 |
+| €100 → R$600, fee €1 | `createConversionTransaction` | **EUR:** Bank −101 · Clearing +100 · Fees +1 — **BRL:** Clearing −600 · Wise BRL +600 |
+| R$120 dinner charged €20.40 on card | `createExpenseTransaction` + `foreignCharge` | **BRL:** Food +120 · Clearing −120 — **EUR:** Clearing +20.40 · Card −20.40 |
+
+The foreign purchase keeps the expense in its original BRL and the debt in the EUR actually charged; the executed rate (5.882353) is stored.
+
+## Validation (`assertValidTransaction`)
+
+1. Non-empty id and description; at least 2 postings; no zero amounts.
+2. Every referenced account and category exists; account postings use the account's currency.
+3. Postings sum to zero in each currency.
+4. One currency: no exchange data. Two currencies: the rate used plus a clearing posting in each currency.
+5. Expense categories only move positive, income categories only negative.
+6. Type rules: income only into assets; transfers only between two distinct asset accounts, no categories; card payments reduce a credit card from asset accounts; conversions involve two currencies, asset accounts only, fees as expense; the opening-balance posting only in opening balances.
+
+## Balances and summaries
+
+- `calculateAccountBalance(account, transactions)` — the balance as the user reads it: money held for assets (negative = overdraft), money owed for liabilities.
+- `summarizeIncomeAndExpense(transactions, categories, currency)` — totals from category postings only, so transfers, card payments and conversions never count.
+- `convertMoneyOnDate(money, currency, rates, date)` — values an amount with the rate in force on a date (current or historical).
 
 ## Later phases
 
 | Area | Entities |
 | --- | --- |
-| Debts (3) | `DebtTerms { creditor, originalAmount, interest info, minimumPayment, priority, dueDate, status }` → linked to a liability account |
+| Persistence (2) | `createdAt`/`updatedAt`, account status, overdraft limit |
+| Debts (3) | `DebtTerms { creditor, originalAmount, interest, minimumPayment, priority, dueDate, status }` on a liability account |
 | Credit cards (4) | `CreditCardTerms { closingDay, dueDay, creditLimit }`, `Statement`, `InstallmentPlan`, `Installment` |
-| Planning (5) | `RecurrenceRule`, `PlannedItem { expectedDate, amount, status: PENDING \| MATCHED \| SKIPPED, matchedTransactionId }`, `Budget { month, categoryId, amount }` |
+| Planning (5) | `RecurrenceRule`, `PlannedItem { expectedDate, amount, status, matchedTransactionId }`, `Budget { month, categoryId, amount }` |
 | Goals (7) | `FinancialGoal { name, type, targetAmount, currency, deadline, priority, status, linkedAccountId? }`, `GoalAllocation` |
 | Analytics (8) | `FinancialSnapshot { month, assets, liabilities, netWorth, ratesUsed }` |
 | Investments (10) | Investment account + `Valuation { date, value }` |
 
-The monthly plan is derived from planned items and budgets; it is not a separate entity.
-
 ## Key formulas
 
 ```text
-Net worth        = Assets − Liabilities                        (reporting currency, current rates)
-Cash flow        = Opening cash + Income − Expenses paid − Debt payments − Investment contributions
-                   (internal transfers and conversions excluded)
-Debt progress %  = (Original amount − Current balance) / Original amount
+Net worth         = Assets − Liabilities                    (reporting currency, current rates)
+Cash flow         = Opening cash + Income − Expenses paid − Debt payments − Investment contributions
+                    (transfers and conversions excluded)
+Debt progress %   = (Original amount − Current balance) / Original amount
 Available to Spend (estimate) = Available cash − Upcoming obligations − Planned debt payments
                                 − Required goal contributions − Minimum reserve
 ```
 
-Consumption (budget, recognised at purchase / per installment) and cash (cash flow,
-recognised when money leaves the bank) are separate views and are never added together.
+Consumption (budget: at purchase or per installment) and cash (cash flow: when money leaves the bank) are separate views and are never added together.
