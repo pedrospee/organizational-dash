@@ -1,0 +1,33 @@
+# Dependencies and build output
+node_modules/
+dist/
+coverage/
+
+# Environment and secrets (.env.example is the only committed env file)
+.env
+.env.*
+!.env.example
+
+# Databases — real financial data never enters Git
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
+# Personal data, backups and exports
+data/
+personal-data/
+financial-data/
+backups/
+exports/
+
+# Logs
+logs/
+*.log
+
+# OS and editor files
+.DS_Store
+.vscode/
+.idea/
