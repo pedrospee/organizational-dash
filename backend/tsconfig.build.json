@@ -1,0 +1,10 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "rootDir": "..",
+    "outDir": "dist"
+  },
+  "include": ["src", "../packages/core/src"],
+  "exclude": ["../**/*.test.ts", "../**/test-fixtures.ts"]
+}
