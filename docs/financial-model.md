@@ -1,6 +1,6 @@
 # Financial Model
 
-What is implemented in `src/core/` (Phase 1) and what later phases add.
+What is implemented in `packages/core/src/` (`@solvia/core`, Phase 1) and what later phases add.
 
 ## Implemented (Phase 1)
 

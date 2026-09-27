@@ -42,13 +42,14 @@ Spreadsheets become hard to maintain as financial complexity grows. I wanted a s
 
 ## Project status
 
-Early development. The financial core exists; there is no database or user interface yet.
+Early development. The financial core exists and the repository is a monorepo ready for the backend; there is no database or user interface yet.
 
 | Phase | Scope | Status |
 | --- | --- | --- |
 | 0 | Foundation: TypeScript, Vitest, Biome, Git hooks, documentation | ✅ Done |
 | 1 | Financial core: money, exchange rates, double-entry ledger | ✅ Done |
-| 2 | Persistence (SQLite), accounts, transactions, backup, minimal UI | Next |
+| 2A | Monorepo (npm workspaces), CI, Dependabot | ✅ Done |
+| 2B–2C | Persistence (SQLite), accounts, transactions, backup, minimal UI | Next |
 | 3–12 | Debts, credit cards, planning, payoff simulator, goals, analytics, dashboard, investments, integrations, advanced security | Planned |
 
 The full roadmap and rules are in [docs/](docs/).
@@ -61,7 +62,9 @@ The full roadmap and rules are in [docs/](docs/).
 | [business-rules.md](docs/business-rules.md) | Every approved financial rule and its implementation status |
 | [financial-model.md](docs/financial-model.md) | Entities, postings, formulas |
 | [security.md](docs/security.md) | Data protection and secret handling |
-| [development.md](docs/development.md) | Setup, scripts, conventions |
+| [development.md](docs/development.md) | Setup, scripts, workspaces, conventions |
+| [adr/](docs/adr/) | Architecture decision records |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | How to work on the project |
 
 ## Getting started
 
@@ -69,14 +72,25 @@ Requires Node.js 24 LTS and [Gitleaks](https://github.com/gitleaks/gitleaks).
 
 ```sh
 npm install
-npm run check   # typecheck + lint + tests
+npm run check   # typecheck + lint + tests, every workspace
+npm run dev     # run the backend, restarting on change
+```
+
+## Repository structure
+
+An npm workspaces monorepo ([ADR-0001](docs/adr/0001-monorepo-with-npm-workspaces.md)):
+
+```text
+packages/core   @solvia/core      pure financial core: money, exchange rates, ledger
+backend         @solvia/backend   configuration and bootstrap; API and database from Phase 2B
+docs            requirements, rules, architecture and decision records
 ```
 
 ## Tech stack
 
 | In use | Planned |
 | --- | --- |
-| Node.js 24, TypeScript (strict), Zod, Vitest, Biome, Gitleaks | SQLite, Drizzle ORM, Hono (Phase 2), React + Vite (UI) |
+| Node.js 24, TypeScript (strict), npm workspaces, Zod, Vitest, Biome, Gitleaks, GitHub Actions | SQLite, Drizzle ORM, Hono (Phase 2B), React + Vite (Phase 2C) |
 
 ## Important note
 
