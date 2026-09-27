@@ -9,7 +9,7 @@
   },
   "scripts": {
     "dev": "node --watch --env-file-if-exists=.env src/main.ts",
-    "start": "node --env-file-if-exists=.env dist/main.js",
+    "start": "node --env-file-if-exists=.env dist/src/main.js",
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
