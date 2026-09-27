@@ -1,0 +1,8 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // No Node types: the core must stay pure, so using process, Buffer or node:* fails to compile.
+    "types": []
+  },
+  "include": ["src"]
+}

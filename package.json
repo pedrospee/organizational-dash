@@ -7,11 +7,15 @@
   "engines": {
     "node": "^24"
   },
+  "workspaces": [
+    "packages/*",
+    "backend"
+  ],
   "scripts": {
-    "dev": "node --watch --env-file-if-exists=.env backend/src/main.ts",
-    "start": "node --env-file-if-exists=.env backend/dist/backend/src/main.js",
-    "build": "tsc -p backend/tsconfig.build.json",
-    "typecheck": "tsc --noEmit",
+    "dev": "npm run dev --workspace=@solvia/backend",
+    "start": "npm run start --workspace=@solvia/backend",
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "tsc --noEmit && npm run typecheck --workspaces",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "test": "vitest run",
@@ -19,9 +23,6 @@
     "check": "npm run typecheck && npm run lint && npm run test",
     "secrets:scan": "gitleaks git --redact --verbose .",
     "prepare": "git config core.hooksPath .githooks"
-  },
-  "dependencies": {
-    "zod": "4.6.5"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",
