@@ -27,9 +27,11 @@ real database files, backups or exports.
 | --- | --- |
 | `.gitignore` blocks `.env*` (except `.env.example`), databases, `data/`, `personal-data/`, `financial-data/`, `backups/`, `exports/`, `logs/` | `.gitignore` |
 | Placeholder-only environment template | `.env.example` |
-| Environment validated at startup; the app refuses to start on invalid config | `src/infrastructure/config/environment.ts` |
+| Environment validated at startup; the app refuses to start on invalid config | `backend/src/infrastructure/config/environment.ts` |
 | Gitleaks scans staged changes before every commit; the commit is blocked if Gitleaks is missing | `.githooks/pre-commit`, enabled by `npm install` |
 | Full-history scan on demand | `npm run secrets:scan` |
+| Gitleaks scan on every push and pull request to `main` | `.github/workflows/ci.yml` |
+| Weekly dependency updates | `.github/dependabot.yml` |
 | GitHub secret scanning + push protection | Enable when the remote repository is created |
 
 ## Backups (Phase 2)

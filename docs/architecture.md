@@ -19,13 +19,21 @@ A ledger transaction is always a fact. Planned items live in planning and are *m
 core / domain (pure rules)  ←  application (use cases)  ←  infrastructure (DB) · http (API) · web (UI)
 ```
 
-- **core** — pure TypeScript: no database, HTTP, React, Hono or external APIs. Every important financial rule lives and is tested here.
-- **application** — use cases that combine core rules with repositories (Phase 2).
+- **core** — pure TypeScript: no database, HTTP, React, Hono, Node APIs or external APIs. Every important financial rule lives and is tested here.
+- **application** — use cases that combine core rules with repositories (Phase 2B).
 - **infrastructure** — SQLite via Drizzle, configuration, backups.
 - **http** — thin Hono routes on `127.0.0.1`; no business rules.
 - **web** — React + Vite UI.
 
-Dependencies point inward only.
+Dependencies point inward only. The repository is an npm workspaces monorepo ([ADR-0001](adr/0001-monorepo-with-npm-workspaces.md)), and the workspaces make the layers visible:
+
+| Workspace | Package | Layers | Depends on |
+| --- | --- | --- | --- |
+| `packages/core` | `@solvia/core` | core | nothing (no runtime dependencies, no Node types) |
+| `backend` | `@solvia/backend` | application, infrastructure, http | `@solvia/core`, Zod |
+| `frontend` (Phase 2C) | — | web | shared contracts, never the backend |
+
+Other workspaces import the core only as `@solvia/core` (its `src/index.ts`), never through deep paths.
 
 ## Ledger model: internal double-entry
 
@@ -48,20 +56,27 @@ Details: [financial-model.md](financial-model.md) · Rules: [business-rules.md](
 Folders are created only when a phase needs them.
 
 ```text
-src/
-├── core/
-│   ├── money/            Currency, Money (bigint minor units), allocation
-│   ├── exchange/         ExchangeRate, conversion, executed rates, rate history
-│   ├── ledger/           Account, Category, Transaction, validation, factories, balances
-│   ├── decimal.ts        exact decimal parsing and rounding
-│   ├── local-date.ts     YYYY-MM-DD dates without time zone
-│   └── domain-error.ts   DomainError with stable codes
-├── infrastructure/
-│   └── config/           environment validation
-└── main.ts               bootstrap
+packages/
+└── core/                     @solvia/core
+    └── src/
+        ├── index.ts          public API (the only import path for other workspaces)
+        ├── money/            Currency, Money (bigint minor units), allocation
+        ├── exchange/         ExchangeRate, conversion, executed rates, rate history
+        ├── ledger/           Account, Category, Transaction, validation, factories, balances
+        ├── decimal.ts        exact decimal parsing and rounding
+        ├── local-date.ts     YYYY-MM-DD dates without time zone
+        └── domain-error.ts   DomainError with stable codes
+backend/                      @solvia/backend
+└── src/
+    ├── infrastructure/
+    │   └── config/           environment validation
+    └── main.ts               bootstrap
+docs/adr/                     architecture decision records
 ```
 
-From Phase 2: `src/modules/<feature>/` (use cases and repositories), `src/infrastructure/database/`, `src/http/`.
+Root: shared configuration (`tsconfig.base.json`, `biome.json`, `vitest.config.ts`), CI in `.github/`.
+
+From Phase 2B: `packages/contracts/` (API schemas shared with the UI), `backend/src/modules/<feature>/` (use cases and repositories), `backend/src/infrastructure/database/`, `backend/src/http/`. From Phase 2C: `frontend/`.
 
 ## Stack
 
@@ -71,7 +86,9 @@ From Phase 2: `src/modules/<feature>/` (use cases and repositories), `src/infras
 | Language | TypeScript `strict` + `noUncheckedIndexedAccess` | Errors caught at compile time |
 | Money | `bigint` minor units, decimal strings for rates | Never floating point |
 | Validation | Zod | External input and configuration |
-| Tests / lint | Vitest / Biome | Fast, minimal configuration |
+| Tests / lint | Vitest / Biome | Fast, minimal configuration; one root config for every workspace |
+| Repository | npm workspaces | Explicit package boundaries without extra tools ([ADR-0001](adr/0001-monorepo-with-npm-workspaces.md)) |
+| CI | GitHub Actions, Dependabot | `npm run check` and Gitleaks on every push and pull request |
 | Database (Phase 2) | SQLite + Drizzle + better-sqlite3 | Local file, ACID, typed, versioned migrations |
 | API (Phase 2) | Hono | Small, typed client |
 | UI | React + Vite | Introduced with the minimal UI |
@@ -85,7 +102,10 @@ No dependency is added without a documented reason.
 | --- | --- | --- |
 | 0 | Foundation | ✅ Done |
 | 1 | Financial core: money, exchange rates, ledger | ✅ Done |
-| 2 | Persistence, accounts, transactions, manual rates, backup/export, minimal UI | Next |
+| 2 | Persistence, accounts, transactions, manual rates, backup/export, minimal UI | In progress |
+| 2A | Monorepo with npm workspaces, CI | ✅ Done |
+| 2B | Backend skeleton: Hono, Drizzle, SQLite, shared contracts | Next |
+| 2C | Frontend: React + Vite | |
 | 3 | Debt management | |
 | 4 | Credit cards: statements, installments | |
 | 5 | Planning and budget | |

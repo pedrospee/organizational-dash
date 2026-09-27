@@ -1,23 +1,7 @@
 {
+  "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "target": "es2024",
-    "lib": ["es2024"],
-    "module": "nodenext",
-    "moduleResolution": "nodenext",
-    "types": ["node"],
-
-    "strict": true,
-    "noUncheckedIndexedAccess": true,
-    "noImplicitOverride": true,
-    "noFallthroughCasesInSwitch": true,
-
-    "verbatimModuleSyntax": true,
-    "erasableSyntaxOnly": true,
-    "rewriteRelativeImportExtensions": true,
-    "isolatedModules": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "noEmit": true
+    "types": ["node"]
   },
-  "include": ["src", "vitest.config.ts"]
+  "include": ["vitest.config.ts"]
 }

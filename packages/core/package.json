@@ -1,0 +1,13 @@
+{
+  "name": "@solvia/core",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Pure financial core: money, exchange rates and the double-entry ledger.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  }
+}
