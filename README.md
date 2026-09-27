@@ -1,4 +1,4 @@
-# Personal Finance Manager
+# Solvia
 
 A personal finance management application built around a real personal need: organizing, planning and understanding finances across multiple accounts, currencies, debts, goals and future obligations.
 
