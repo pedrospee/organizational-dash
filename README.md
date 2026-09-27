@@ -64,7 +64,6 @@ The full roadmap and rules are in [docs/](docs/).
 | [security.md](docs/security.md) | Data protection and secret handling |
 | [development.md](docs/development.md) | Setup, scripts, workspaces, conventions |
 | [adr/](docs/adr/) | Architecture decision records |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | How to work on the project |
 
 ## Getting started
 
