@@ -11,7 +11,15 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@hono/node-server": "2.1.1",
     "@solvia/core": "*",
+    "better-sqlite3": "13.0.3",
+    "drizzle-orm": "0.45.3",
+    "hono": "4.13.10",
     "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "9.6.0",
+    "drizzle-kit": "0.31.11"
   }
 }
