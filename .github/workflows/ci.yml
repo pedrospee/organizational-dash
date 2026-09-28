@@ -32,6 +32,20 @@ jobs:
 
       - run: npm run check
 
+      # `drizzle-kit check` only validates the migration files among themselves, so drift is
+      # detected by generating: a schema change without a committed migration produces new files.
+      - name: Check that committed migrations match the schema
+        timeout-minutes: 2
+        env:
+          MIGRATIONS: backend/src/infrastructure/database/migrations
+        run: |
+          npm run db:generate < /dev/null
+          if [ -n "$(git status --porcelain -- "$MIGRATIONS")" ]; then
+            git status --porcelain -- "$MIGRATIONS"
+            echo "::error::The schema changed without a committed migration. Run npm run db:generate and commit the result."
+            exit 1
+          fi
+
       - name: Scan for secrets
         uses: gitleaks/gitleaks-action@v3
         env:
