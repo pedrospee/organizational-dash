@@ -1,0 +1,102 @@
+# ADR-0003: API conventions
+
+- **Status:** Accepted
+- **Date:** 2026-09-28
+- **Phase:** 2B
+
+## Context
+
+The backend exposes the ledger to the Phase 2C React UI over HTTP. The UI must get typed requests
+and responses without depending on backend runtime code, and the API must never become a second
+financial core.
+
+## Decision
+
+### Routes and layers
+
+- Every route is under `/api/`, JSON only. The server binds to `127.0.0.1`.
+- `routes → services → @solvia/core → repositories → SQLite`. Routes validate input and map
+  results; services orchestrate and call the core; repositories only persist. No financial rule
+  lives in a route, service or repository.
+- Routes are chained Hono sub-apps composed in `createApp()` (`backend/src/http/app.ts`).
+
+### JSON representation
+
+| Value | JSON | Example |
+| --- | --- | --- |
+| Money | `{ amountMinor: string, currency }` | `{ "amountMinor": "1050", "currency": "EUR" }` |
+| Exchange rate | Decimal string | `"5.882353"` |
+| Business date | `YYYY-MM-DD` | `"2026-03-15"` |
+| Timestamp | ISO 8601 | `"2026-03-15T10:30:00.000Z"` |
+
+`amountMinor` is a string because JSON has no `bigint`. The contract checks only the
+representation (an integer within the signed 64-bit range SQLite can store); whether an amount may
+be zero or negative is a financial rule, left to `@solvia/core`.
+
+### `@solvia/contracts`
+
+`packages/contracts` holds the Zod schemas of the JSON requests and responses. It depends only on
+Zod: not on `@solvia/core` (so no second domain model and no dependency just to reuse constants),
+and not on Node types (the browser imports it). Values both packages define, such as currencies,
+are duplicated on purpose; a backend test fails at type level and at runtime if they drift.
+
+```text
+@solvia/core        @solvia/contracts
+       ↑                    ↑
+       └────── backend ─────┘
+```
+
+### Mappers
+
+Conversion between the JSON representation and core types (`string` ↔ `bigint`, `string` →
+`LocalDate`) happens only at the HTTP boundary, in one mapper per feature. Response schemas type
+the mappers; responses are not validated again at runtime.
+
+### Errors
+
+Every error has one shape:
+
+```json
+{ "error": { "code": "ACCOUNT_NOT_FOUND", "message": "…", "details": {} } }
+```
+
+`details` is optional. `code` is stable and meant for programs; `message` is for humans.
+
+| Status | When | Codes |
+| --- | --- | --- |
+| 400 | The request does not match the contract, or the body is malformed | `VALIDATION_FAILED` (Zod issues in `details`), `INVALID_REQUEST`, `INVALID_CURSOR` |
+| 404 | A resource, or a referenced resource, does not exist | `ROUTE_NOT_FOUND`, `<ENTITY>_NOT_FOUND` |
+| 409 | The request conflicts with the current state | e.g. `ACCOUNT_IN_USE`, `ACCOUNT_ARCHIVED` |
+| 422 | A financial rule was violated (`DomainError`) | The core's code, e.g. `UNBALANCED_TRANSACTION` |
+| 500 | Anything unexpected | `INTERNAL_ERROR`, generic message |
+
+A 500 is logged on the server and exposes nothing: no stack trace, SQL, file path or internal
+detail. Unknown errors are never turned into a 400.
+
+### `AppType` and Phase 2C
+
+`createApp()` returns the fully chained Hono app, and `AppType = ReturnType<typeof createApp>`
+carries every route's input and output types for `hono/client`. The route types have one source of
+truth: the routes themselves.
+
+The backend exposes it through a type-only entry point, `@solvia/backend/rpc`
+(`backend/src/http/rpc.ts`, which contains only `export type { AppType }`). Phase 2C will use:
+
+```ts
+import type { AppType } from "@solvia/backend/rpc";
+```
+
+with `@solvia/backend` as a development dependency of the frontend. `import type` is erased at
+compile time, so the browser bundle never contains backend code, and the UI talks to the backend
+only over HTTP.
+
+Known risk, to verify when the frontend exists: type-checking the frontend then also type-checks
+the backend sources it reaches, under the frontend's compiler options. If that causes problems,
+the refinement is for the backend to emit a declaration file for `AppType` only. It stays the same
+single source of truth; no separate API-types package is created before the problem exists.
+
+## Consequences
+
+- The UI gets typed calls without a runtime dependency on the backend.
+- Every error is predictable: one shape, stable codes, one status per category.
+- A small amount of duplication between contracts and core is accepted and guarded by a test.
