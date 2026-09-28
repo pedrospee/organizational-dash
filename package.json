@@ -14,6 +14,8 @@
   "scripts": {
     "dev": "npm run dev --workspace=@solvia/backend",
     "start": "npm run start --workspace=@solvia/backend",
+    "db:generate": "npm run db:generate --workspace=@solvia/backend",
+    "db:migrate": "npm run db:migrate --workspace=@solvia/backend",
     "build": "npm run build --workspaces --if-present",
     "typecheck": "tsc --noEmit && npm run typecheck --workspaces",
     "lint": "biome check .",
