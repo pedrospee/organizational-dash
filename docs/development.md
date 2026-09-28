@@ -9,10 +9,13 @@
 
 ```sh
 npm install            # also enables the Git hooks (core.hooksPath = .githooks)
-cp .env.example .env   # optional; never commit .env
+cp .env.example .env   # then set DATABASE_PATH and BACKUP_DIR; never commit .env
+npm run db:migrate     # creates the database and applies the migrations
+npm run dev            # API on http://127.0.0.1:3000
 ```
 
-The `.env` file lives at the repository root; the backend reads it from there.
+The `.env` file lives at the repository root; the backend and its scripts read it from there.
+`DATABASE_PATH` and `BACKUP_DIR` are required absolute paths **outside the repository**.
 
 ## Repository layout
 
@@ -21,7 +24,8 @@ An npm workspaces monorepo ([ADR-0001](adr/0001-monorepo-with-npm-workspaces.md)
 | Workspace | Package | Contents |
 | --- | --- | --- |
 | `packages/core` | `@solvia/core` | Pure financial core; public API in `src/index.ts` |
-| `backend` | `@solvia/backend` | Configuration and bootstrap (API and persistence from Phase 2B) |
+| `packages/contracts` | `@solvia/contracts` | Zod schemas of the API's JSON requests and responses |
+| `backend` | `@solvia/backend` | HTTP API (Hono), use cases and SQLite persistence (Drizzle) |
 
 Development tools (TypeScript, Vitest, Biome, `@types/node`) are root development dependencies. Runtime dependencies are declared in the workspace that uses them.
 
@@ -35,19 +39,35 @@ Run from the repository root:
 | `npm test` / `npm run test:watch` | Vitest once / in watch mode, every workspace |
 | `npm run lint` / `npm run lint:fix` | Biome check / apply safe fixes and formatting |
 | `npm run typecheck` | TypeScript without emitting, per workspace |
-| `npm run dev` | Runs `backend/src/main.ts` directly, restarting when backend or core files change |
+| `npm run dev` | Runs the API from source on `127.0.0.1`, restarting when backend or core files change |
 | `npm run build` / `npm start` | Compile the backend to `backend/dist/` / run the compiled app |
+| `npm run db:migrate` | Applies pending migrations; backs up an existing database first |
+| `npm run db:generate` | Generates a new migration after a schema change |
 | `npm run secrets:scan` | Gitleaks scan of the whole Git history |
 
 ### Working with one workspace
 
 ```sh
 npm run typecheck -w @solvia/core        # a script of one workspace
-npx vitest run --project core            # tests of one workspace (core | backend)
+npx vitest run --project core            # tests of one workspace (core | contracts | backend)
 npm install <pkg> -w @solvia/backend     # add a dependency to one workspace (document why first)
 ```
 
 `@solvia/core` has no build step: its `exports` points at `src/index.ts` and Node runs it through type stripping, in development and in production ([ADR-0001](adr/0001-monorepo-with-npm-workspaces.md)).
+
+## Database
+
+SQLite through Drizzle ([ADR-0002](adr/0002-persistence-with-sqlite-and-drizzle.md)).
+
+- **The server never changes the schema.** `npm run dev` and `npm start` refuse to start when the
+  database does not exist or has pending migrations, and ask you to run `npm run db:migrate`.
+- **`npm run db:migrate`** is the only schema-changing operation. When an existing database has
+  pending migrations, it first writes a verified backup to `BACKUP_DIR`; a new database or an
+  up-to-date one is not backed up.
+- **Changing the schema:** edit `backend/src/infrastructure/database/schema/`, run
+  `npm run db:generate`, commit the generated migration, then run `npm run db:migrate`.
+  Committed migrations are never edited. CI fails when the schema and the migrations differ.
+- Integer columns use `bigintInteger` (never Drizzle's `integer()`), so money stays `bigint`.
 
 ## Conventions
 

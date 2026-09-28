@@ -30,10 +30,12 @@ Dependencies point inward only. The repository is an npm workspaces monorepo ([A
 | Workspace | Package | Layers | Depends on |
 | --- | --- | --- | --- |
 | `packages/core` | `@solvia/core` | core | nothing (no runtime dependencies, no Node types) |
-| `backend` | `@solvia/backend` | application, infrastructure, http | `@solvia/core`, Zod |
-| `frontend` (Phase 2C) | — | web | shared contracts, never the backend |
+| `packages/contracts` | `@solvia/contracts` | API JSON schemas | Zod only (no core, no Node types) |
+| `backend` | `@solvia/backend` | application, infrastructure, http | `@solvia/core`, `@solvia/contracts`, Hono, Drizzle, better-sqlite3, Zod |
+| `frontend` (Phase 2C) | — | web | `@solvia/contracts`; `AppType` as a type-only import, never backend runtime code |
 
 Other workspaces import the core only as `@solvia/core` (its `src/index.ts`), never through deep paths.
+Persistence: [ADR-0002](adr/0002-persistence-with-sqlite-and-drizzle.md). API conventions: [ADR-0003](adr/0003-api-conventions.md).
 
 ## Ledger model: internal double-entry
 
@@ -66,17 +68,28 @@ packages/
         ├── decimal.ts        exact decimal parsing and rounding
         ├── local-date.ts     YYYY-MM-DD dates without time zone
         └── domain-error.ts   DomainError with stable codes
+packages/
+└── contracts/                @solvia/contracts
+    └── src/                  Zod schemas of the API JSON (money, errors, …)
 backend/                      @solvia/backend
+├── drizzle.config.ts         drizzle-kit configuration (db:generate)
 └── src/
+    ├── http/
+    │   ├── app.ts            createApp() and AppType
+    │   ├── rpc.ts            type-only AppType entry point for the UI
+    │   ├── error-handler.ts  ApiError and the single error shape
+    │   └── routes/           thin Hono routes
     ├── infrastructure/
-    │   └── config/           environment validation
-    └── main.ts               bootstrap
+    │   ├── config/           environment validation
+    │   └── database/         SQLite client, schema, migrations, backup
+    ├── scripts/              db:migrate and other operational scripts
+    └── main.ts               bootstrap: checks the database, serves on 127.0.0.1
 docs/adr/                     architecture decision records
 ```
 
 Root: shared configuration (`tsconfig.base.json`, `biome.json`, `vitest.config.ts`), CI in `.github/`.
 
-From Phase 2B: `packages/contracts/` (API schemas shared with the UI), `backend/src/modules/<feature>/` (use cases and repositories), `backend/src/infrastructure/database/`, `backend/src/http/`. From Phase 2C: `frontend/`.
+Later in Phase 2B: `backend/src/modules/<feature>/` (services and repositories). From Phase 2C: `frontend/`.
 
 ## Stack
 
@@ -89,8 +102,8 @@ From Phase 2B: `packages/contracts/` (API schemas shared with the UI), `backend/
 | Tests / lint | Vitest / Biome | Fast, minimal configuration; one root config for every workspace |
 | Repository | npm workspaces | Explicit package boundaries without extra tools ([ADR-0001](adr/0001-monorepo-with-npm-workspaces.md)) |
 | CI | GitHub Actions, Dependabot | `npm run check` and Gitleaks on every push and pull request |
-| Database (Phase 2) | SQLite + Drizzle + better-sqlite3 | Local file, ACID, typed, versioned migrations |
-| API (Phase 2) | Hono | Small, typed client |
+| Database | SQLite + Drizzle + better-sqlite3 | Local file, ACID, typed, versioned migrations ([ADR-0002](adr/0002-persistence-with-sqlite-and-drizzle.md)) |
+| API | Hono + `@solvia/contracts` (Zod) | Small, typed RPC client, shared schemas ([ADR-0003](adr/0003-api-conventions.md)) |
 | UI | React + Vite | Introduced with the minimal UI |
 | Secrets | `.env`, Gitleaks pre-commit, GitHub push protection | See [security.md](security.md) |
 
@@ -104,7 +117,7 @@ No dependency is added without a documented reason.
 | 1 | Financial core: money, exchange rates, ledger | ✅ Done |
 | 2 | Persistence, accounts, transactions, manual rates, backup/export, minimal UI | In progress |
 | 2A | Monorepo with npm workspaces, CI | ✅ Done |
-| 2B | Backend skeleton: Hono, Drizzle, SQLite, shared contracts | Next |
+| 2B | Backend skeleton: Hono, Drizzle, SQLite, shared contracts | In progress |
 | 2C | Frontend: React + Vite | |
 | 3 | Debt management | |
 | 4 | Credit cards: statements, installments | |

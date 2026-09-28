@@ -42,14 +42,15 @@ Spreadsheets become hard to maintain as financial complexity grows. I wanted a s
 
 ## Project status
 
-Early development. The financial core exists and the repository is a monorepo ready for the backend; there is no database or user interface yet.
+Early development. The financial core exists; the backend (SQLite persistence and HTTP API) is being built in Phase 2B. There is no user interface yet.
 
 | Phase | Scope | Status |
 | --- | --- | --- |
 | 0 | Foundation: TypeScript, Vitest, Biome, Git hooks, documentation | ✅ Done |
 | 1 | Financial core: money, exchange rates, double-entry ledger | ✅ Done |
 | 2A | Monorepo (npm workspaces), CI, Dependabot | ✅ Done |
-| 2B–2C | Persistence (SQLite), accounts, transactions, backup, minimal UI | Next |
+| 2B | Backend: SQLite persistence, HTTP API, accounts, transactions, backup | In progress |
+| 2C | Minimal UI (React + Vite) | Next |
 | 3–12 | Debts, credit cards, planning, payoff simulator, goals, analytics, dashboard, investments, integrations, advanced security | Planned |
 
 The full roadmap and rules are in [docs/](docs/).
@@ -71,8 +72,10 @@ Requires Node.js 24 LTS and [Gitleaks](https://github.com/gitleaks/gitleaks).
 
 ```sh
 npm install
-npm run check   # typecheck + lint + tests, every workspace
-npm run dev     # run the backend, restarting on change
+npm run check        # typecheck + lint + tests, every workspace
+cp .env.example .env # set DATABASE_PATH and BACKUP_DIR (outside the repository)
+npm run db:migrate   # create or update the database
+npm run dev          # API on http://127.0.0.1:3000, restarting on change
 ```
 
 ## Repository structure
@@ -80,8 +83,9 @@ npm run dev     # run the backend, restarting on change
 An npm workspaces monorepo ([ADR-0001](docs/adr/0001-monorepo-with-npm-workspaces.md)):
 
 ```text
-packages/core   @solvia/core      pure financial core: money, exchange rates, ledger
-backend         @solvia/backend   configuration and bootstrap; API and database from Phase 2B
+packages/core        @solvia/core        pure financial core: money, exchange rates, ledger
+packages/contracts   @solvia/contracts   Zod schemas of the API's JSON
+backend              @solvia/backend     HTTP API (Hono) and SQLite persistence (Drizzle)
 docs            requirements, rules, architecture and decision records
 ```
 
@@ -89,7 +93,7 @@ docs            requirements, rules, architecture and decision records
 
 | In use | Planned |
 | --- | --- |
-| Node.js 24, TypeScript (strict), npm workspaces, Zod, Vitest, Biome, Gitleaks, GitHub Actions | SQLite, Drizzle ORM, Hono (Phase 2B), React + Vite (Phase 2C) |
+| Node.js 24, TypeScript (strict), npm workspaces, Zod, Vitest, Biome, Gitleaks, GitHub Actions, SQLite, Drizzle ORM, Hono | React + Vite (Phase 2C) |
 
 ## Important note
 
