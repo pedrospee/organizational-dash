@@ -19,6 +19,9 @@ financial core.
   results; services orchestrate and call the core; repositories only persist. No financial rule
   lives in a route, service or repository.
 - Routes are chained Hono sub-apps composed in `createApp()` (`backend/src/http/app.ts`).
+- Routes validate input with `validate(target, schema)` (`backend/src/http/validation.ts`): Hono's
+  built-in validator running a `@solvia/contracts` schema, so the schema's input type reaches
+  `AppType` and a mismatch becomes a 400 `VALIDATION_FAILED`. No extra validator package is used.
 
 ### JSON representation
 
