@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@hono/node-server": "2.1.1",
+    "@solvia/contracts": "*",
     "@solvia/core": "*",
     "better-sqlite3": "13.0.3",
     "drizzle-orm": "0.45.3",

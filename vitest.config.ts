@@ -14,6 +14,14 @@ export default defineConfig({
       },
       {
         test: {
+          name: "contracts",
+          root: "packages/contracts",
+          include: ["src/**/*.test.ts"],
+          environment: "node",
+        },
+      },
+      {
+        test: {
           name: "backend",
           root: "backend",
           include: ["src/**/*.test.ts"],

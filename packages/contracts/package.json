@@ -1,0 +1,16 @@
+{
+  "name": "@solvia/contracts",
+  "version": "0.0.0",
+  "private": true,
+  "description": "API contracts: Zod schemas for the JSON requests and responses of the Solvia API.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "4.6.5"
+  }
+}

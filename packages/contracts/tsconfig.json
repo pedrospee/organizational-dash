@@ -1,0 +1,8 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // No Node types: the contracts are shared with the browser UI (Phase 2C).
+    "types": []
+  },
+  "include": ["src"]
+}
