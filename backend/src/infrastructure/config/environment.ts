@@ -3,10 +3,7 @@ import { z } from "zod";
 
 // Real data must live outside the repository, so relative paths (resolved from
 // wherever a script happens to run) are rejected.
-const absolutePath = z
-  .string()
-  .min(1)
-  .refine(isAbsolute, { message: "must be an absolute path" });
+const absolutePath = z.string().min(1).refine(isAbsolute, { message: "must be an absolute path" });
 
 const environmentSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
