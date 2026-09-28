@@ -1,16 +1,55 @@
 import { describe, expect, it } from "vitest";
 import { InvalidEnvironmentError, loadEnvironment } from "./environment.ts";
 
+const requiredPaths = {
+  DATABASE_PATH: "/var/solvia/solvia.db",
+  BACKUP_DIR: "/var/solvia/backups",
+};
+
 describe("loadEnvironment", () => {
-  it("defaults NODE_ENV to development when it is not set", () => {
-    expect(loadEnvironment({})).toEqual({ NODE_ENV: "development" });
+  it("applies defaults for NODE_ENV and PORT", () => {
+    expect(loadEnvironment(requiredPaths)).toEqual({
+      NODE_ENV: "development",
+      PORT: 3000,
+      ...requiredPaths,
+    });
   });
 
-  it("accepts a supported NODE_ENV", () => {
-    expect(loadEnvironment({ NODE_ENV: "production" })).toEqual({ NODE_ENV: "production" });
+  it("accepts a supported NODE_ENV and a numeric PORT", () => {
+    const environment = loadEnvironment({ ...requiredPaths, NODE_ENV: "production", PORT: "4100" });
+
+    expect(environment.NODE_ENV).toBe("production");
+    expect(environment.PORT).toBe(4100);
   });
 
   it("rejects an unsupported NODE_ENV", () => {
-    expect(() => loadEnvironment({ NODE_ENV: "staging" })).toThrow(InvalidEnvironmentError);
+    expect(() => loadEnvironment({ ...requiredPaths, NODE_ENV: "staging" })).toThrow(
+      InvalidEnvironmentError,
+    );
+  });
+
+  it("requires DATABASE_PATH and BACKUP_DIR", () => {
+    expect(() => loadEnvironment({})).toThrow(InvalidEnvironmentError);
+    expect(() => loadEnvironment({ DATABASE_PATH: requiredPaths.DATABASE_PATH })).toThrow(
+      InvalidEnvironmentError,
+    );
+  });
+
+  it("rejects relative database and backup paths", () => {
+    expect(() => loadEnvironment({ ...requiredPaths, DATABASE_PATH: "data/solvia.db" })).toThrow(
+      InvalidEnvironmentError,
+    );
+    expect(() => loadEnvironment({ ...requiredPaths, BACKUP_DIR: "./backups" })).toThrow(
+      InvalidEnvironmentError,
+    );
+  });
+
+  it("rejects a PORT outside the valid range", () => {
+    expect(() => loadEnvironment({ ...requiredPaths, PORT: "70000" })).toThrow(
+      InvalidEnvironmentError,
+    );
+    expect(() => loadEnvironment({ ...requiredPaths, PORT: "abc" })).toThrow(
+      InvalidEnvironmentError,
+    );
   });
 });
