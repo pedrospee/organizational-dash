@@ -1,0 +1,62 @@
+import type { ErrorResponse } from "@solvia/contracts";
+import { DomainError } from "@solvia/core";
+import type { Context } from "hono";
+import { HTTPException } from "hono/http-exception";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
+
+/**
+ * An application failure with a stable code: invalid input (400), a missing
+ * resource (404) or a conflict with the current state (409). Financial rule
+ * violations are DomainErrors from @solvia/core instead (422).
+ */
+export class ApiError extends Error {
+  readonly status: 400 | 404 | 409;
+  readonly code: string;
+  readonly details: Record<string, unknown> | undefined;
+
+  constructor(
+    status: 400 | 404 | 409,
+    code: string,
+    message: string,
+    details?: Record<string, unknown>,
+  ) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.code = code;
+    this.details = details;
+  }
+}
+
+/** Maps every thrown error to the single API error shape (ADR-0003). */
+export function errorHandler(error: Error, c: Context): Response {
+  if (error instanceof ApiError) {
+    return errorResponse(c, error.status, error.code, error.message, error.details);
+  }
+  if (error instanceof DomainError) {
+    return errorResponse(c, 422, error.code, error.message);
+  }
+  // Raised by Hono itself before our code runs, e.g. a malformed JSON body.
+  if (error instanceof HTTPException && error.status === 400) {
+    return errorResponse(c, 400, "INVALID_REQUEST", error.message);
+  }
+
+  // Anything else is a bug or an infrastructure failure: log it, reveal nothing.
+  console.error(error);
+  return errorResponse(c, 500, "INTERNAL_ERROR", "An unexpected error occurred.");
+}
+
+export function notFoundHandler(c: Context): Response {
+  return errorResponse(c, 404, "ROUTE_NOT_FOUND", `No route for ${c.req.method} ${c.req.path}.`);
+}
+
+function errorResponse(
+  c: Context,
+  status: ContentfulStatusCode,
+  code: string,
+  message: string,
+  details?: Record<string, unknown>,
+): Response {
+  const body: ErrorResponse = { error: { code, message, ...(details ? { details } : {}) } };
+  return c.json(body, status);
+}
