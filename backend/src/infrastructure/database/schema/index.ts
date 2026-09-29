@@ -1,2 +1,2 @@
 // Drizzle table definitions. Tables are added by the feature that needs them.
-export {};
+export { accounts } from "./accounts.ts";
