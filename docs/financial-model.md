@@ -57,13 +57,26 @@ The foreign purchase keeps the expense in its original BRL and the debt in the E
 
 | Area | Entities |
 | --- | --- |
-| Persistence (2) | `createdAt`/`updatedAt`, account status |
+| Persistence (2) | `createdAt`/`updatedAt` and account `archivedAt`, stored by the backend only (see below) |
 | Debts (3) | `DebtTerms { creditor, originalAmount, interest, minimumPayment, priority, dueDate, status }` on a liability account |
 | Credit cards (4) | `CreditCardTerms { closingDay, dueDay, creditLimit }`, `Statement`, `InstallmentPlan`, `Installment` |
 | Planning (5) | `RecurrenceRule`, `PlannedItem { expectedDate, amount, status, matchedTransactionId }`, `Budget { month, categoryId, amount }` |
 | Goals (7) | `FinancialGoal { name, type, targetAmount, currency, deadline, priority, status, linkedAccountId? }`, `GoalAllocation` |
 | Analytics (8) | `FinancialSnapshot { month, assets, liabilities, netWorth, ratesUsed }` |
 | Investments (10) | Investment account + `Valuation { date, value }` |
+
+## Account lifecycle (backend, not core)
+
+Archiving is a lifecycle change, not a change to the financial reality recorded in the ledger, so the
+core `Account` has no status. The backend stores `archivedAt` (and `createdAt`, `updatedAt`):
+
+- An archived account keeps its history, and its balance still counts in net worth, obligations and
+  reports. It can be archived with any balance, positive or negative.
+- It is left out of the default account list, and cannot receive new transactions (Phase 2B, slice 5).
+- Archiving is reversible (unarchive).
+- An account without postings can be deleted; one with postings cannot (`ACCOUNT_IN_USE`, enforced
+  once postings are persisted in slice 5) and is archived instead.
+- `kind` and `currency` never change after creation; `name`, `institution` and `overdraftLimit` can.
 
 ## Key formulas
 

@@ -75,10 +75,15 @@ backend/                      @solvia/backend
 ├── drizzle.config.ts         drizzle-kit configuration (db:generate)
 └── src/
     ├── http/
-    │   ├── app.ts            createApp() and AppType
+    │   ├── app.ts            createApp({ db }) and AppType
     │   ├── rpc.ts            type-only AppType entry point for the UI
     │   ├── error-handler.ts  ApiError and the single error shape
+    │   ├── validation.ts     validate(target, schema): contracts through Hono's validator
+    │   ├── mappers/          JSON ↔ core conversion, one file per feature
     │   └── routes/           thin Hono routes
+    ├── modules/
+    │   ├── errors.ts         NotFoundError (application errors without HTTP status)
+    │   └── accounts/         account service (use cases) and repository (persistence)
     ├── infrastructure/
     │   ├── config/           environment validation
     │   └── database/         SQLite client, schema, migrations, backup
@@ -89,7 +94,7 @@ docs/adr/                     architecture decision records
 
 Root: shared configuration (`tsconfig.base.json`, `biome.json`, `vitest.config.ts`), CI in `.github/`.
 
-Later in Phase 2B: `backend/src/modules/<feature>/` (services and repositories). From Phase 2C: `frontend/`.
+Later in Phase 2B: the other `backend/src/modules/<feature>/` folders (categories, exchange rates, transactions). From Phase 2C: `frontend/`.
 
 ## Stack
 
