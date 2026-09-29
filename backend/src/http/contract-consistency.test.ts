@@ -1,5 +1,16 @@
-import { type CurrencyJson, currencySchema } from "@solvia/contracts";
-import { CURRENCIES, type Currency } from "@solvia/core";
+import {
+  type AccountKindJson,
+  accountKindSchema,
+  type CurrencyJson,
+  currencySchema,
+} from "@solvia/contracts";
+import {
+  type AccountKind,
+  ASSET_ACCOUNT_KINDS,
+  CURRENCIES,
+  type Currency,
+  LIABILITY_ACCOUNT_KINDS,
+} from "@solvia/core";
 import { describe, expect, expectTypeOf, it } from "vitest";
 
 // @solvia/contracts deliberately does not depend on @solvia/core (ADR-0003), so the
@@ -9,5 +20,10 @@ describe("contracts stay consistent with the core", () => {
   it("currencies", () => {
     expectTypeOf<CurrencyJson>().toEqualTypeOf<Currency>();
     expect(currencySchema.options).toEqual(CURRENCIES);
+  });
+
+  it("account kinds", () => {
+    expectTypeOf<AccountKindJson>().toEqualTypeOf<AccountKind>();
+    expect(accountKindSchema.options).toEqual([...ASSET_ACCOUNT_KINDS, ...LIABILITY_ACCOUNT_KINDS]);
   });
 });
