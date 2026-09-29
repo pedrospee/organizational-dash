@@ -10,7 +10,7 @@ What is implemented in `packages/core/src/` (`@solvia/core`, Phase 1) and what l
 | `Money` | `{ amountMinor: bigint, currency }` | `€10.50 → 1050n`; parse with `moneyFromDecimal("10.50", "EUR")` |
 | `LocalDate` | `"YYYY-MM-DD"` | Validated calendar date, no time zone |
 | `ExchangeRate` | `{ baseCurrency, quoteCurrency, rate, effectiveDate, source, recordedAt }` | `rate` is an exact decimal string; `source` is `MANUAL` or `TRANSACTION` |
-| `Account` | `{ id, name, institution?, kind, currency }` | Nature (asset/liability) derived from `kind` |
+| `Account` | `{ id, name, institution?, kind, currency, overdraftLimit? }` | Nature (asset/liability) derived from `kind`; `overdraftLimit` only on `BANK` (BR-22) |
 | `Category` | `{ id, name, nature: INCOME \| EXPENSE, parentId? }` | Currency-agnostic |
 | `Transaction` | `{ id, date, description, type, postings, exchangeRate? }` | `exchangeRate` only when two currencies are involved |
 | `Posting` | `{ target, amount }` | `target` is an account, a category or a system role |
@@ -49,6 +49,7 @@ The foreign purchase keeps the expense in its original BRL and the debt in the E
 ## Balances and summaries
 
 - `calculateAccountBalance(account, transactions)` — the balance as the user reads it: money held for assets (negative = overdraft), money owed for liabilities.
+- `calculateOverdraft(account, transactions)` — BR-22: `limit`, `used`, `remaining`, `exceeded` and `availableIncludingOverdraft`, derived from the balance; `null` for an account without a limit.
 - `summarizeIncomeAndExpense(transactions, categories, currency)` — totals from category postings only, so transfers, card payments and conversions never count.
 - `convertMoneyOnDate(money, currency, rates, date)` — values an amount with the rate in force on a date (current or historical).
 
@@ -56,13 +57,26 @@ The foreign purchase keeps the expense in its original BRL and the debt in the E
 
 | Area | Entities |
 | --- | --- |
-| Persistence (2) | `createdAt`/`updatedAt`, account status, overdraft limit |
+| Persistence (2) | `createdAt`/`updatedAt` and account `archivedAt`, stored by the backend only (see below) |
 | Debts (3) | `DebtTerms { creditor, originalAmount, interest, minimumPayment, priority, dueDate, status }` on a liability account |
 | Credit cards (4) | `CreditCardTerms { closingDay, dueDay, creditLimit }`, `Statement`, `InstallmentPlan`, `Installment` |
 | Planning (5) | `RecurrenceRule`, `PlannedItem { expectedDate, amount, status, matchedTransactionId }`, `Budget { month, categoryId, amount }` |
 | Goals (7) | `FinancialGoal { name, type, targetAmount, currency, deadline, priority, status, linkedAccountId? }`, `GoalAllocation` |
 | Analytics (8) | `FinancialSnapshot { month, assets, liabilities, netWorth, ratesUsed }` |
 | Investments (10) | Investment account + `Valuation { date, value }` |
+
+## Account lifecycle (backend, not core)
+
+Archiving is a lifecycle change, not a change to the financial reality recorded in the ledger, so the
+core `Account` has no status. The backend stores `archivedAt` (and `createdAt`, `updatedAt`):
+
+- An archived account keeps its history, and its balance still counts in net worth, obligations and
+  reports. It can be archived with any balance, positive or negative.
+- It is left out of the default account list, and cannot receive new transactions (Phase 2B, slice 5).
+- Archiving is reversible (unarchive).
+- An account without postings can be deleted; one with postings cannot (`ACCOUNT_IN_USE`, enforced
+  once postings are persisted in slice 5) and is archived instead.
+- `kind` and `currency` never change after creation; `name`, `institution` and `overdraftLimit` can.
 
 ## Key formulas
 

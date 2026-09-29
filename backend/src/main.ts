@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { serve } from "@hono/node-server";
 import { createApp } from "./http/app.ts";
 import { loadEnvironment } from "./infrastructure/config/environment.ts";
-import { openSqlite } from "./infrastructure/database/client.ts";
+import { createDatabase, openSqlite } from "./infrastructure/database/client.ts";
 import {
   assertNoPendingMigrations,
   PendingMigrationsError,
@@ -30,7 +30,7 @@ try {
   throw error;
 }
 
-const app = createApp();
+const app = createApp({ db: createDatabase(sqlite) });
 const server = serve({ fetch: app.fetch, hostname: HOSTNAME, port: environment.PORT }, (info) => {
   console.log(`Solvia API on http://${info.address}:${info.port} (${environment.NODE_ENV}).`);
 });

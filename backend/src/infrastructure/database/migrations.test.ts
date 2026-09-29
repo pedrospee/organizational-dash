@@ -78,6 +78,13 @@ describe("committed migrations", () => {
 
     expect(countPendingMigrations(sqlite, MIGRATIONS_FOLDER)).toBe(0);
     expect(backupFiles()).toEqual([]);
+    const tables = sqlite
+      .prepare(
+        "SELECT name FROM sqlite_schema WHERE type = 'table' AND name <> '__drizzle_migrations'",
+      )
+      .pluck()
+      .all();
+    expect(tables).toEqual(["accounts"]);
   });
 });
 

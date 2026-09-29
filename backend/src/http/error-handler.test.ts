@@ -2,6 +2,7 @@ import { DomainError } from "@solvia/core";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { NotFoundError } from "../modules/errors.ts";
 import { ApiError, errorHandler } from "./error-handler.ts";
 
 function appThrowing(error: unknown) {
@@ -37,6 +38,17 @@ describe("errorHandler", () => {
         message: "The account has postings.",
         details: { accountId: "fictitious-account" },
       },
+    });
+  });
+
+  it("maps a NotFoundError to 404 with its code", async () => {
+    const error = new NotFoundError("ACCOUNT_NOT_FOUND", 'No account with id "x".');
+
+    const response = await appThrowing(error).request("/fail");
+
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({
+      error: { code: "ACCOUNT_NOT_FOUND", message: 'No account with id "x".' },
     });
   });
 
