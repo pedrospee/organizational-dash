@@ -33,7 +33,7 @@ Every approved financial rule, with the phase that implements it. A rule is ✅ 
 | --- | --- | --- |
 | BR-20 | Balances are derived from the ledger, starting from an opening-balance transaction. | ✅ `financial-scenarios.test.ts` |
 | BR-21 | An internal transfer changes balances with zero income, zero expense and unchanged total. Transfers are only between own asset accounts in the same currency. | ✅ `financial-scenarios.test.ts`, `transaction-validation.test.ts` |
-| BR-22 | Overdraft is a negative balance of the bank account itself, with a limit; no separate liability. Used, available and remaining overdraft are derived. | Negative balance ✅ · limit in Phase 2 |
+| BR-22 | Overdraft is a negative balance of the bank account itself, with a limit; no separate liability. Only `BANK` accounts may have an `overdraftLimit`: in the account's currency, greater than zero; absent means no limit. Derived: `used = max(0, −balance)`, `remaining = max(0, limit − used)`, `exceeded = max(0, used − limit)`, `availableIncludingOverdraft = max(0, balance + limit)` (not BR-65's Available to Spend). Without a limit the derived values are null. The limit never blocks the ledger: going beyond it is recorded and shows as `exceeded`. | ✅ `overdraft.test.ts`, `financial-scenarios.test.ts` |
 | BR-23 | Free editing of past transactions in the MVP (`createdAt`, `updatedAt`); edits must keep the ledger balanced and derived values are recalculated. | Phase 2 |
 
 ## Debts
