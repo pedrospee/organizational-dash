@@ -97,7 +97,11 @@ describe("GET /api/accounts", () => {
       );
 
     expect(await names("/api/accounts")).toEqual(["Active"]);
-    expect(await names("/api/accounts?includeArchived=true")).toEqual(["Active", "Archived"]);
+    // Order is covered by the repository test, where the creation times are controlled.
+    expect((await names("/api/accounts?includeArchived=true")).sort()).toEqual([
+      "Active",
+      "Archived",
+    ]);
     expect(active.id).not.toBe(archived.id);
   });
 
