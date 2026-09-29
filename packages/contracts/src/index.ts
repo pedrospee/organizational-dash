@@ -14,6 +14,19 @@ export {
   type UpdateAccountRequest,
   updateAccountRequestSchema,
 } from "./account.ts";
+export {
+  type CategoryListResponse,
+  type CategoryNatureJson,
+  type CategoryResponse,
+  type CreateCategoryRequest,
+  categoryListResponseSchema,
+  categoryNatureSchema,
+  categoryResponseSchema,
+  createCategoryRequestSchema,
+  listCategoriesQuerySchema,
+  type UpdateCategoryRequest,
+  updateCategoryRequestSchema,
+} from "./category.ts";
 export { type ErrorResponse, errorResponseSchema } from "./error.ts";
 export {
   amountMinorSchema,

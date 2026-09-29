@@ -82,8 +82,9 @@ backend/                      @solvia/backend
     │   ├── mappers/          JSON ↔ core conversion, one file per feature
     │   └── routes/           thin Hono routes
     ├── modules/
-    │   ├── errors.ts         NotFoundError (application errors without HTTP status)
-    │   └── accounts/         account service (use cases) and repository (persistence)
+    │   ├── errors.ts         NotFoundError, ConflictError (application errors without HTTP status)
+    │   ├── accounts/         account service (use cases) and repository (persistence)
+    │   └── categories/       category service and repository
     ├── infrastructure/
     │   ├── config/           environment validation
     │   └── database/         SQLite client, schema, migrations, backup
@@ -94,7 +95,7 @@ docs/adr/                     architecture decision records
 
 Root: shared configuration (`tsconfig.base.json`, `biome.json`, `vitest.config.ts`), CI in `.github/`.
 
-Later in Phase 2B: the other `backend/src/modules/<feature>/` folders (categories, exchange rates, transactions). From Phase 2C: `frontend/`.
+Later in Phase 2B: the other `backend/src/modules/<feature>/` folders (exchange rates, transactions). From Phase 2C: `frontend/`.
 
 ## Stack
 

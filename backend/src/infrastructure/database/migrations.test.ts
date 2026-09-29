@@ -84,7 +84,7 @@ describe("committed migrations", () => {
       )
       .pluck()
       .all();
-    expect(tables).toEqual(["accounts"]);
+    expect(tables).toEqual(["accounts", "categories"]);
   });
 });
 

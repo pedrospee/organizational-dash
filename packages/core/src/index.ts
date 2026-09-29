@@ -26,7 +26,12 @@ export {
   type IncomeAndExpense,
   summarizeIncomeAndExpense,
 } from "./ledger/balances.ts";
-export { type Category, type CategoryNature, createCategory } from "./ledger/category.ts";
+export {
+  assertValidCategoryHierarchy,
+  type Category,
+  type CategoryNature,
+  createCategory,
+} from "./ledger/category.ts";
 export { calculateOverdraft, type Overdraft } from "./ledger/overdraft.ts";
 export {
   type Posting,

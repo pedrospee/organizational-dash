@@ -36,6 +36,17 @@ Every approved financial rule, with the phase that implements it. A rule is ✅ 
 | BR-22 | Overdraft is a negative balance of the bank account itself, with a limit; no separate liability. Only `BANK` accounts may have an `overdraftLimit`: in the account's currency, greater than zero; absent means no limit. Derived: `used = max(0, −balance)`, `remaining = max(0, limit − used)`, `exceeded = max(0, used − limit)`, `availableIncludingOverdraft = max(0, balance + limit)` (not BR-65's Available to Spend). Without a limit the derived values are null. The limit never blocks the ledger: going beyond it is recorded and shows as `exceeded`. | ✅ `overdraft.test.ts`, `financial-scenarios.test.ts` |
 | BR-23 | Free editing of past transactions in the MVP (`createdAt`, `updatedAt`); edits must keep the ledger balanced and derived values are recalculated. | Phase 2 |
 
+## Categories
+
+| ID | Rule | Status |
+| --- | --- | --- |
+| BR-70 | A child category has the same `nature` (`INCOME` or `EXPENSE`) as its parent. | ✅ `category.test.ts` |
+| BR-71 | Categories have at most two levels, parent → child. A parent is a top-level category, so a category with children cannot become a child. The whole resulting tree is validated, never a change in isolation. | ✅ `category.test.ts` |
+
+A posting may target a parent category directly, even when it has children. How reports aggregate
+a parent with its children is decided with analytics (Phase 8); no posting is ever counted twice
+because of the hierarchy (`category.test.ts`).
+
 ## Debts
 
 | ID | Rule | Status |

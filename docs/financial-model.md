@@ -11,7 +11,7 @@ What is implemented in `packages/core/src/` (`@solvia/core`, Phase 1) and what l
 | `LocalDate` | `"YYYY-MM-DD"` | Validated calendar date, no time zone |
 | `ExchangeRate` | `{ baseCurrency, quoteCurrency, rate, effectiveDate, source, recordedAt }` | `rate` is an exact decimal string; `source` is `MANUAL` or `TRANSACTION` |
 | `Account` | `{ id, name, institution?, kind, currency, overdraftLimit? }` | Nature (asset/liability) derived from `kind`; `overdraftLimit` only on `BANK` (BR-22) |
-| `Category` | `{ id, name, nature: INCOME \| EXPENSE, parentId? }` | Currency-agnostic |
+| `Category` | `{ id, name, nature: INCOME \| EXPENSE, parentId? }` | Currency-agnostic; at most two levels, a child shares its parent's nature (BR-70, BR-71) |
 | `Transaction` | `{ id, date, description, type, postings, exchangeRate? }` | `exchangeRate` only when two currencies are involved |
 | `Posting` | `{ target, amount }` | `target` is an account, a category or a system role |
 
@@ -50,6 +50,7 @@ The foreign purchase keeps the expense in its original BRL and the debt in the E
 
 - `calculateAccountBalance(account, transactions)` — the balance as the user reads it: money held for assets (negative = overdraft), money owed for liabilities.
 - `calculateOverdraft(account, transactions)` — BR-22: `limit`, `used`, `remaining`, `exceeded` and `availableIncludingOverdraft`, derived from the balance; `null` for an account without a limit.
+- `assertValidCategoryHierarchy(categories)` — BR-70, BR-71: validates the whole tree as it would be after a change (parents exist, same nature, at most two levels).
 - `summarizeIncomeAndExpense(transactions, categories, currency)` — totals from category postings only, so transfers, card payments and conversions never count.
 - `convertMoneyOnDate(money, currency, rates, date)` — values an amount with the rate in force on a date (current or historical).
 
@@ -57,7 +58,7 @@ The foreign purchase keeps the expense in its original BRL and the debt in the E
 
 | Area | Entities |
 | --- | --- |
-| Persistence (2) | `createdAt`/`updatedAt` and account `archivedAt`, stored by the backend only (see below) |
+| Persistence (2) | `createdAt`/`updatedAt` and `archivedAt` of accounts and categories, stored by the backend only (see below) |
 | Debts (3) | `DebtTerms { creditor, originalAmount, interest, minimumPayment, priority, dueDate, status }` on a liability account |
 | Credit cards (4) | `CreditCardTerms { closingDay, dueDay, creditLimit }`, `Statement`, `InstallmentPlan`, `Installment` |
 | Planning (5) | `RecurrenceRule`, `PlannedItem { expectedDate, amount, status, matchedTransactionId }`, `Budget { month, categoryId, amount }` |
@@ -77,6 +78,24 @@ core `Account` has no status. The backend stores `archivedAt` (and `createdAt`, 
 - An account without postings can be deleted; one with postings cannot (`ACCOUNT_IN_USE`, enforced
   once postings are persisted in slice 5) and is archived instead.
 - `kind` and `currency` never change after creation; `name`, `institution` and `overdraftLimit` can.
+
+## Category lifecycle (backend, not core)
+
+The hierarchy rules (BR-70, BR-71) are the core's; the lifecycle below is the backend's, with the
+same `archivedAt`, `createdAt` and `updatedAt` as accounts.
+
+- A parent must exist (`CATEGORY_NOT_FOUND`) and must not be archived when a category is created
+  under it, moved to it or unarchived beneath it (`CATEGORY_PARENT_ARCHIVED`). An active child
+  never sits under an archived parent.
+- A parent with active children cannot be archived (`CATEGORY_HAS_ACTIVE_CHILDREN`); archive the
+  children first. An archived category keeps its history, still counts in reports and cannot receive
+  new transactions (slice 5). Archiving is reversible.
+- A category without children and without postings can be deleted. A parent cannot
+  (`CATEGORY_HAS_CHILDREN`), and neither can a category with postings (`CATEGORY_IN_USE`, enforced
+  once postings are persisted in slice 5); when both apply, `CATEGORY_HAS_CHILDREN` is reported.
+  Nothing is deleted or archived in cascade, and postings are never reclassified automatically.
+- `nature` never changes after creation; `name` and `parentId` can (`null` moves to the top level).
+  An update that changes nothing keeps `updatedAt`.
 
 ## Key formulas
 
