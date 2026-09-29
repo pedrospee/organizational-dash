@@ -3,6 +3,7 @@ import { DomainError } from "@solvia/core";
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
+import { NotFoundError } from "../modules/errors.ts";
 
 /**
  * An application failure with a stable code: invalid input (400), a missing
@@ -32,6 +33,9 @@ export class ApiError extends Error {
 export function errorHandler(error: Error, c: Context): Response {
   if (error instanceof ApiError) {
     return errorResponse(c, error.status, error.code, error.message, error.details);
+  }
+  if (error instanceof NotFoundError) {
+    return errorResponse(c, 404, error.code, error.message);
   }
   if (error instanceof DomainError) {
     return errorResponse(c, 422, error.code, error.message);
