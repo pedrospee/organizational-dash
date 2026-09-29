@@ -8,6 +8,13 @@
       "when": 1790681251860,
       "tag": "0000_accounts",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1790683954330,
+      "tag": "0001_categories",
+      "breakpoints": true
     }
   ]
 }
