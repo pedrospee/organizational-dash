@@ -11,3 +11,17 @@ export class NotFoundError extends Error {
     this.code = code;
   }
 }
+
+/**
+ * A use case conflicts with the current state (e.g. CATEGORY_HAS_CHILDREN).
+ * It carries a stable code but no HTTP status: the HTTP layer maps it to 409.
+ */
+export class ConflictError extends Error {
+  readonly code: string;
+
+  constructor(code: string, message: string) {
+    super(message);
+    this.name = "ConflictError";
+    this.code = code;
+  }
+}

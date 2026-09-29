@@ -2,7 +2,7 @@ import { DomainError } from "@solvia/core";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { NotFoundError } from "../modules/errors.ts";
+import { ConflictError, NotFoundError } from "../modules/errors.ts";
 import { ApiError, errorHandler } from "./error-handler.ts";
 
 function appThrowing(error: unknown) {
@@ -49,6 +49,17 @@ describe("errorHandler", () => {
     expect(response.status).toBe(404);
     expect(await response.json()).toEqual({
       error: { code: "ACCOUNT_NOT_FOUND", message: 'No account with id "x".' },
+    });
+  });
+
+  it("maps a ConflictError to 409 with its code", async () => {
+    const error = new ConflictError("CATEGORY_HAS_CHILDREN", "It has children.");
+
+    const response = await appThrowing(error).request("/fail");
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({
+      error: { code: "CATEGORY_HAS_CHILDREN", message: "It has children." },
     });
   });
 
