@@ -108,6 +108,25 @@ describe("account service", () => {
     expect(accounts.update(account.id, { overdraftLimit: null }).account).toEqual(withoutLimit);
   });
 
+  it("treats an update that changes nothing as a no-op, leaving updatedAt untouched", () => {
+    const accounts = service();
+    const created = accounts.create({
+      name: "Demo",
+      institution: "Example",
+      kind: "BANK",
+      currency: "EUR",
+      overdraftLimit: eur(20_000n),
+    });
+    clock = new Date("2026-09-02T10:00:00.000Z");
+    const id = created.account.id;
+
+    expect(accounts.update(id, {})).toEqual(created);
+    expect(
+      accounts.update(id, { name: " Demo ", institution: "Example", overdraftLimit: eur(20_000n) }),
+    ).toEqual(created);
+    expect(accounts.get(id)).toEqual(created);
+  });
+
   it("revalidates an update through the core", () => {
     const accounts = service();
     const { account } = accounts.create({ name: "Demo", kind: "WISE", currency: "EUR" });

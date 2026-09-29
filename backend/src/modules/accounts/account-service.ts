@@ -55,9 +55,11 @@ export function createAccountService(
       return record;
     },
 
+    /** An update that changes nothing is a no-op: updatedAt marks the last effective change. */
     update(id: string, changes: AccountChanges): AccountRecord {
       const current = load(id);
-      return save(current, { account: createAccount(applyChanges(current.account, changes)) });
+      const account = createAccount(applyChanges(current.account, changes));
+      return sameEditableFields(account, current.account) ? current : save(current, { account });
     },
 
     /** Archiving an archived account changes nothing. */
@@ -76,6 +78,15 @@ export function createAccountService(
       repository.delete(id);
     },
   };
+}
+
+function sameEditableFields(left: Account, right: Account): boolean {
+  return (
+    left.name === right.name &&
+    left.institution === right.institution &&
+    left.overdraftLimit?.amountMinor === right.overdraftLimit?.amountMinor &&
+    left.overdraftLimit?.currency === right.overdraftLimit?.currency
+  );
 }
 
 function applyChanges(account: Account, changes: AccountChanges): Account {
