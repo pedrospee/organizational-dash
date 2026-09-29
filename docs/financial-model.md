@@ -58,7 +58,7 @@ The foreign purchase keeps the expense in its original BRL and the debt in the E
 
 | Area | Entities |
 | --- | --- |
-| Persistence (2) | `createdAt`/`updatedAt` and account `archivedAt`, stored by the backend only (see below) |
+| Persistence (2) | `createdAt`/`updatedAt` and `archivedAt` of accounts and categories, stored by the backend only (see below) |
 | Debts (3) | `DebtTerms { creditor, originalAmount, interest, minimumPayment, priority, dueDate, status }` on a liability account |
 | Credit cards (4) | `CreditCardTerms { closingDay, dueDay, creditLimit }`, `Statement`, `InstallmentPlan`, `Installment` |
 | Planning (5) | `RecurrenceRule`, `PlannedItem { expectedDate, amount, status, matchedTransactionId }`, `Budget { month, categoryId, amount }` |
@@ -78,6 +78,24 @@ core `Account` has no status. The backend stores `archivedAt` (and `createdAt`, 
 - An account without postings can be deleted; one with postings cannot (`ACCOUNT_IN_USE`, enforced
   once postings are persisted in slice 5) and is archived instead.
 - `kind` and `currency` never change after creation; `name`, `institution` and `overdraftLimit` can.
+
+## Category lifecycle (backend, not core)
+
+The hierarchy rules (BR-70, BR-71) are the core's; the lifecycle below is the backend's, with the
+same `archivedAt`, `createdAt` and `updatedAt` as accounts.
+
+- A parent must exist (`CATEGORY_NOT_FOUND`) and must not be archived when a category is created
+  under it, moved to it or unarchived beneath it (`CATEGORY_PARENT_ARCHIVED`). An active child
+  never sits under an archived parent.
+- A parent with active children cannot be archived (`CATEGORY_HAS_ACTIVE_CHILDREN`); archive the
+  children first. An archived category keeps its history, still counts in reports and cannot receive
+  new transactions (slice 5). Archiving is reversible.
+- A category without children and without postings can be deleted. A parent cannot
+  (`CATEGORY_HAS_CHILDREN`), and neither can a category with postings (`CATEGORY_IN_USE`, enforced
+  once postings are persisted in slice 5); when both apply, `CATEGORY_HAS_CHILDREN` is reported.
+  Nothing is deleted or archived in cascade, and postings are never reclassified automatically.
+- `nature` never changes after creation; `name` and `parentId` can (`null` moves to the top level).
+  An update that changes nothing keeps `updatedAt`.
 
 ## Key formulas
 

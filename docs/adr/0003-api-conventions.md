@@ -52,15 +52,18 @@ are duplicated on purpose; a backend test fails at type level and at runtime if 
 ### Resources
 
 - Collections are returned as `{ "items": [...] }`, leaving room for pagination fields later.
+- Hierarchies are returned flat, each item with its `parentId`; the client builds the tree.
 - `POST` that creates returns 201 with the resource; `DELETE` returns 204 with no body.
 - Partial updates use `PATCH`: a field left out stays unchanged and `null` removes an optional field.
   Immutable fields are not part of the update contract, so sending them is a 400, never ignored.
+  A `PATCH` that changes nothing is a no-op and keeps `updatedAt`.
 - State changes that are not edits are sub-resource actions, e.g. `POST /api/accounts/:id/archive`.
 
 ### Mappers
 
 Conversion between the JSON representation and core types (`string` ↔ `bigint`, `string` →
-`LocalDate`) happens only at the HTTP boundary, in one mapper per feature. Response schemas type
+`LocalDate`) happens only at the HTTP boundary, in one mapper per feature. A request that already
+has the core's shape (e.g. categories) is passed through without a mapper. Response schemas type
 the mappers; responses are not validated again at runtime.
 
 ### Errors
@@ -74,14 +77,14 @@ Every error has one shape:
 `details` is optional. `code` is stable and meant for programs; `message` is for humans.
 
 Services do not know HTTP. They throw `DomainError` (from the core) or application errors that carry
-a code but no status, such as `NotFoundError` (`backend/src/modules/errors.ts`); the error handler
-maps them to statuses. `ApiError`, which carries a status, is raised only by the HTTP layer.
+a code but no status, `NotFoundError` (404) and `ConflictError` (409) in
+`backend/src/modules/errors.ts`; the error handler maps them to statuses. `ApiError`, which carries a status, is raised only by the HTTP layer.
 
 | Status | When | Codes |
 | --- | --- | --- |
 | 400 | The request does not match the contract, or the body is malformed | `VALIDATION_FAILED` (Zod issues in `details`), `INVALID_REQUEST`, `INVALID_CURSOR` |
 | 404 | A resource, or a referenced resource, does not exist | `ROUTE_NOT_FOUND`, `<ENTITY>_NOT_FOUND` (e.g. `ACCOUNT_NOT_FOUND`) |
-| 409 | The request conflicts with the current state | e.g. `ACCOUNT_IN_USE`, `ACCOUNT_ARCHIVED` |
+| 409 | The request conflicts with the current state | e.g. `ACCOUNT_IN_USE`, `ACCOUNT_ARCHIVED`, `CATEGORY_HAS_CHILDREN`, `CATEGORY_HAS_ACTIVE_CHILDREN`, `CATEGORY_PARENT_ARCHIVED` |
 | 422 | A financial rule was violated (`DomainError`) | The core's code, e.g. `UNBALANCED_TRANSACTION` |
 | 500 | Anything unexpected | `INTERNAL_ERROR`, generic message |
 
