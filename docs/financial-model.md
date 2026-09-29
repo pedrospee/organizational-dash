@@ -11,7 +11,7 @@ What is implemented in `packages/core/src/` (`@solvia/core`, Phase 1) and what l
 | `LocalDate` | `"YYYY-MM-DD"` | Validated calendar date, no time zone |
 | `ExchangeRate` | `{ baseCurrency, quoteCurrency, rate, effectiveDate, source, recordedAt }` | `rate` is an exact decimal string; `source` is `MANUAL` or `TRANSACTION` |
 | `Account` | `{ id, name, institution?, kind, currency, overdraftLimit? }` | Nature (asset/liability) derived from `kind`; `overdraftLimit` only on `BANK` (BR-22) |
-| `Category` | `{ id, name, nature: INCOME \| EXPENSE, parentId? }` | Currency-agnostic |
+| `Category` | `{ id, name, nature: INCOME \| EXPENSE, parentId? }` | Currency-agnostic; at most two levels, a child shares its parent's nature (BR-70, BR-71) |
 | `Transaction` | `{ id, date, description, type, postings, exchangeRate? }` | `exchangeRate` only when two currencies are involved |
 | `Posting` | `{ target, amount }` | `target` is an account, a category or a system role |
 
@@ -50,6 +50,7 @@ The foreign purchase keeps the expense in its original BRL and the debt in the E
 
 - `calculateAccountBalance(account, transactions)` — the balance as the user reads it: money held for assets (negative = overdraft), money owed for liabilities.
 - `calculateOverdraft(account, transactions)` — BR-22: `limit`, `used`, `remaining`, `exceeded` and `availableIncludingOverdraft`, derived from the balance; `null` for an account without a limit.
+- `assertValidCategoryHierarchy(categories)` — BR-70, BR-71: validates the whole tree as it would be after a change (parents exist, same nature, at most two levels).
 - `summarizeIncomeAndExpense(transactions, categories, currency)` — totals from category postings only, so transfers, card payments and conversions never count.
 - `convertMoneyOnDate(money, currency, rates, date)` — values an amount with the rate in force on a date (current or historical).
 
