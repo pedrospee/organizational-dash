@@ -29,6 +29,20 @@ export {
 } from "./category.ts";
 export { type ErrorResponse, errorResponseSchema } from "./error.ts";
 export {
+  applicableExchangeRateQuerySchema,
+  type CreateExchangeRateRequest,
+  createExchangeRateRequestSchema,
+  type ExchangeRateListResponse,
+  type ExchangeRateResponse,
+  type ExchangeRateSourceJson,
+  exchangeRateListResponseSchema,
+  exchangeRateResponseSchema,
+  exchangeRateSourceSchema,
+  listExchangeRatesQuerySchema,
+  rateSchema,
+} from "./exchange-rate.ts";
+export { localDateSchema } from "./local-date.ts";
+export {
   amountMinorSchema,
   type CurrencyJson,
   currencySchema,
