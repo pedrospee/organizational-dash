@@ -58,6 +58,8 @@ are duplicated on purpose; a backend test fails at type level and at runtime if 
   Immutable fields are not part of the update contract, so sending them is a 400, never ignored.
   A `PATCH` that changes nothing is a no-op and keeps `updatedAt`.
 - State changes that are not edits are sub-resource actions, e.g. `POST /api/accounts/:id/archive`.
+- An append-only resource (e.g. manual exchange rates) has no `PATCH` or `DELETE` route; such a
+  request is a 404 `ROUTE_NOT_FOUND`, and a correction is a new resource.
 
 ### Mappers
 

@@ -42,14 +42,14 @@ Spreadsheets become hard to maintain as financial complexity grows. I wanted a s
 
 ## Project status
 
-Early development. The financial core exists; the backend (SQLite persistence and HTTP API) is being built in Phase 2B. There is no user interface yet.
+Early development. The financial core exists; the backend (SQLite persistence and HTTP API) is being built in Phase 2B, in slices (see [architecture.md](docs/architecture.md#phase-2b-slices)). There is no user interface yet.
 
 | Phase | Scope | Status |
 | --- | --- | --- |
 | 0 | Foundation: TypeScript, Vitest, Biome, Git hooks, documentation | ✅ Done |
 | 1 | Financial core: money, exchange rates, double-entry ledger | ✅ Done |
 | 2A | Monorepo (npm workspaces), CI, Dependabot | ✅ Done |
-| 2B | Backend: SQLite persistence, HTTP API, accounts, transactions, backup | In progress |
+| 2B | Backend: SQLite persistence, HTTP API, accounts, categories, manual exchange rates, transactions, backup | In progress |
 | 2C | Minimal UI (React + Vite) | Next |
 | 3–12 | Debts, credit cards, planning, payoff simulator, goals, analytics, dashboard, investments, integrations, advanced security | Planned |
 

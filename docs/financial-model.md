@@ -1,15 +1,15 @@
 # Financial Model
 
-What is implemented in `packages/core/src/` (`@solvia/core`, Phase 1) and what later phases add.
+What is implemented in `packages/core/src/` (`@solvia/core`, Phase 1 and the Phase 2B slices) and what later phases add.
 
-## Implemented (Phase 1)
+## Implemented
 
 | Entity | Shape | Notes |
 | --- | --- | --- |
 | `Currency` | `"EUR" \| "BRL"` | 2 minor-unit digits each |
 | `Money` | `{ amountMinor: bigint, currency }` | `€10.50 → 1050n`; parse with `moneyFromDecimal("10.50", "EUR")` |
 | `LocalDate` | `"YYYY-MM-DD"` | Validated calendar date, no time zone |
-| `ExchangeRate` | `{ baseCurrency, quoteCurrency, rate, effectiveDate, source, recordedAt }` | `rate` is an exact decimal string; `source` is `MANUAL` or `TRANSACTION` |
+| `ExchangeRate` | `{ baseCurrency, quoteCurrency, rate, effectiveDate, source, recordedAt }` | `rate` is an exact decimal string in canonical form, at most 10 decimal places; `source` is `MANUAL` or `TRANSACTION`; recorded as EUR/BRL (BR-80, BR-83) |
 | `Account` | `{ id, name, institution?, kind, currency, overdraftLimit? }` | Nature (asset/liability) derived from `kind`; `overdraftLimit` only on `BANK` (BR-22) |
 | `Category` | `{ id, name, nature: INCOME \| EXPENSE, parentId? }` | Currency-agnostic; at most two levels, a child shares its parent's nature (BR-70, BR-71) |
 | `Transaction` | `{ id, date, description, type, postings, exchangeRate? }` | `exchangeRate` only when two currencies are involved |
@@ -53,6 +53,9 @@ The foreign purchase keeps the expense in its original BRL and the debt in the E
 - `assertValidCategoryHierarchy(categories)` — BR-70, BR-71: validates the whole tree as it would be after a change (parents exist, same nature, at most two levels).
 - `summarizeIncomeAndExpense(transactions, categories, currency)` — totals from category postings only, so transfers, card payments and conversions never count.
 - `convertMoneyOnDate(money, currency, rates, date)` — values an amount with the rate in force on a date (current or historical).
+- `createManualExchangeRate(input)` — BR-80, BR-83: a `MANUAL` EUR/BRL rate, canonical and invertible.
+- `invertExchangeRate(rate)` — BR-82: the same rate from the other currency, rounded half away from zero to 10 decimal places.
+- `convertMoney(money, rate, currency)` — the only conversion of money: either direction of a rate, one rounding (half away from zero) at the target's minor unit.
 
 ## Later phases
 
@@ -96,6 +99,23 @@ same `archivedAt`, `createdAt` and `updatedAt` as accounts.
   Nothing is deleted or archived in cascade, and postings are never reclassified automatically.
 - `nature` never changes after creation; `name` and `parentId` can (`null` moves to the top level).
   An update that changes nothing keeps `updatedAt`.
+
+## Exchange rate lifecycle (backend, not core)
+
+The rules of a rate (BR-80, BR-82, BR-83) are the core's; its history is the backend's.
+
+- `POST /api/exchange-rates` records a `MANUAL` EUR/BRL rate. The client sends the pair, the rate and
+  `effectiveDate` (when the rate applies); the server sets `source` and `recordedAt` (when Solvia
+  recorded it). `recordedAt` strictly increases, even within one millisecond or with the clock set
+  back, so it always orders corrections.
+- Rates are append-only (BR-81): no update and no delete, in the API and in the repository.
+- `GET /api/exchange-rates/applicable?on=YYYY-MM-DD` returns the rate in force on that date, chosen
+  by the core's `findApplicableRate`: the latest `effectiveDate` on or before it, then the latest
+  `recordedAt`. A correction of an old date never overrides a newer date.
+- A rate is not a financial movement: recording one changes no balance, net worth, debt or cash flow.
+  Rates are used for reporting and analysis. A transaction keeps the rate it was executed at
+  (`Transaction.exchangeRate`, source `TRANSACTION`, derived from its legs, BR-16), so a manual
+  rate recorded later never changes what a transaction means.
 
 ## Key formulas
 
