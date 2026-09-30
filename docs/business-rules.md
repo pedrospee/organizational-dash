@@ -27,6 +27,15 @@ Every approved financial rule, with the phase that implements it. A rule is ✅ 
 | BR-18 | A conversion is neither income nor expense (its fee is an expense). | ✅ `financial-scenarios.test.ts` |
 | BR-19 | Value changes caused only by rate movements are an **FX effect**, never income or expense. Analytics separate cash flow, operating result, FX effect and investment performance. | Mechanism ✅ `exchange-rate-history.test.ts` · reporting Phase 8 |
 
+## Exchange rates
+
+| ID | Rule | Status |
+| --- | --- | --- |
+| BR-80 | EUR/BRL is the one representation of a rate: EUR is the base, BRL the quote (`6.2` means 1 EUR = 6.20 BRL). Manual and executed rates are recorded as EUR/BRL; a BRL/EUR rate is never recorded, it is derived (BR-82). Manual rates are typed in by the user, with source `MANUAL`; `TRANSACTION` rates come from real operations (slice 5); external rates are not supported (Phase 11). | ✅ `exchange-rate.test.ts`, `exchange-rate-service.test.ts` |
+| BR-81 | Manual rates are append-only: a correction is a new rate, and the original stays in the history. Several rates may share a date; the one recorded last (`recordedAt`, set by the server) is in force for that date. A rate is never edited or deleted. | ✅ `exchange-rate-service.test.ts`, `exchange-rates.test.ts` |
+| BR-82 | The inverse of a rate (`1 / rate`) is a domain operation, rounded half away from zero to ten decimal places: EUR/BRL 6.2 → BRL/EUR 0.1612903226. Inverting twice returns the original only within that precision. Converting money is always `convertMoney`, which reads a rate in either direction without inverting it. | ✅ `exchange-rate.test.ts` |
+| BR-83 | A rate is an exact decimal string, positive, with at most ten decimal places of value, in canonical form: no leading or trailing zeros (`06.20` → `6.2`), so one value has one spelling. A manual rate must be invertible within that precision. | ✅ `exchange-rate.test.ts` |
+
 ## Accounts and transfers
 
 | ID | Rule | Status |

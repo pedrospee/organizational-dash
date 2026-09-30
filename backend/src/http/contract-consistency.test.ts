@@ -4,6 +4,8 @@ import {
   type CategoryNatureJson,
   type CurrencyJson,
   currencySchema,
+  type ExchangeRateSourceJson,
+  exchangeRateSourceSchema,
 } from "@solvia/contracts";
 import {
   type AccountKind,
@@ -11,6 +13,8 @@ import {
   type CategoryNature,
   CURRENCIES,
   type Currency,
+  EXCHANGE_RATE_SOURCES,
+  type ExchangeRateSource,
   LIABILITY_ACCOUNT_KINDS,
 } from "@solvia/core";
 import { describe, expect, expectTypeOf, it } from "vitest";
@@ -32,5 +36,10 @@ describe("contracts stay consistent with the core", () => {
   it("category natures", () => {
     // The core has no runtime list of natures, so the type check is the guard.
     expectTypeOf<CategoryNatureJson>().toEqualTypeOf<CategoryNature>();
+  });
+
+  it("exchange rate sources", () => {
+    expectTypeOf<ExchangeRateSourceJson>().toEqualTypeOf<ExchangeRateSource>();
+    expect(exchangeRateSourceSchema.options).toEqual(EXCHANGE_RATE_SOURCES);
   });
 });

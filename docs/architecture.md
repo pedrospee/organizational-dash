@@ -84,7 +84,8 @@ backend/                      @solvia/backend
     ├── modules/
     │   ├── errors.ts         NotFoundError, ConflictError (application errors without HTTP status)
     │   ├── accounts/         account service (use cases) and repository (persistence)
-    │   └── categories/       category service and repository
+    │   ├── categories/       category service and repository
+    │   └── exchange-rates/   manual exchange rate service and repository (append-only)
     ├── infrastructure/
     │   ├── config/           environment validation
     │   └── database/         SQLite client, schema, migrations, backup
@@ -95,7 +96,7 @@ docs/adr/                     architecture decision records
 
 Root: shared configuration (`tsconfig.base.json`, `biome.json`, `vitest.config.ts`), CI in `.github/`.
 
-Later in Phase 2B: the other `backend/src/modules/<feature>/` folders (exchange rates, transactions). From Phase 2C: `frontend/`.
+Later in Phase 2B: `backend/src/modules/transactions/` (slice 5). From Phase 2C: `frontend/`.
 
 ## Stack
 
@@ -135,5 +136,18 @@ No dependency is added without a documented reason.
 | 10 | Investments | |
 | 11 | Automatic exchange rates, CSV/OFX import, Wise | |
 | 12 | Advanced security and audit | |
+
+### Phase 2B slices
+
+Phase 2B is delivered in slices, each merged into `main` before the next one starts.
+
+| Slice | Scope | Status |
+| --- | --- | --- |
+| 1 | Backend skeleton: Hono, Drizzle, SQLite, migrations with backup, `@solvia/contracts` | ✅ Done |
+| 2 | Accounts, overdraft limit (BR-22) | ✅ Done |
+| 3 | Categories, two-level hierarchy (BR-70, BR-71) | ✅ Done |
+| 4 | Manual exchange rates (BR-80 to BR-83) | ✅ Done |
+| 5 | Transactions and postings; `ACCOUNT_IN_USE`, `CATEGORY_IN_USE`; balances in the API | |
+| 6 | Manual backup, restore and JSON export | |
 
 After the MVP (phases 0–3): **reconciliation**, then **CSV import** (preview, validation, column mapping, duplicate detection, confirmation, idempotent re-import).

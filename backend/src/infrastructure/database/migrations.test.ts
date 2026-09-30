@@ -1,4 +1,12 @@
-import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import {
+  copyFileSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -55,6 +63,21 @@ function writeMigrations(migrations: (typeof FIRST)[]): string {
   return folder;
 }
 
+/** A copy of the first `count` committed migrations, to upgrade a database with data. */
+function committedMigrationsUpTo(count: number): string {
+  const folder = join(workDir, `committed-${count}`);
+  mkdirSync(join(folder, "meta"), { recursive: true });
+  const journal = JSON.parse(
+    readFileSync(join(MIGRATIONS_FOLDER, "meta", "_journal.json"), "utf8"),
+  ) as { entries: { tag: string }[] };
+  const entries = journal.entries.slice(0, count);
+  writeFileSync(join(folder, "meta", "_journal.json"), JSON.stringify({ ...journal, entries }));
+  for (const { tag } of entries) {
+    copyFileSync(join(MIGRATIONS_FOLDER, `${tag}.sql`), join(folder, `${tag}.sql`));
+  }
+  return folder;
+}
+
 function openFileDatabase(): SqliteConnection {
   const sqlite = openSqlite(join(workDir, "solvia.db"));
   openConnections.push(sqlite);
@@ -84,7 +107,43 @@ describe("committed migrations", () => {
       )
       .pluck()
       .all();
-    expect(tables).toEqual(["accounts", "categories"]);
+    expect(tables).toEqual(["accounts", "categories", "exchange_rates"]);
+  });
+
+  it("add exchange_rates to a database with data, keeping every row and foreign key", () => {
+    const sqlite = openFileDatabase();
+    migrateDatabase(sqlite, { backupDir, migrationsFolder: committedMigrationsUpTo(2) });
+    const t = "2026-09-01T10:00:00.000Z";
+    sqlite
+      .prepare(
+        "INSERT INTO accounts VALUES ('a1', 'Demo Bank', NULL, 'BANK', 'EUR', ?, NULL, ?, ?)",
+      )
+      .run(90_071_992_547_409_930n, t, t);
+    sqlite
+      .prepare("INSERT INTO categories VALUES ('food', 'Food', 'EXPENSE', NULL, NULL, ?, ?)")
+      .run(t, t);
+    sqlite
+      .prepare(
+        "INSERT INTO categories VALUES ('groceries', 'Groceries', 'EXPENSE', 'food', ?, ?, ?)",
+      )
+      .run(t, t, t);
+    const snapshot = () => ({
+      accounts: sqlite.prepare("SELECT * FROM accounts").all(),
+      categories: sqlite.prepare("SELECT * FROM categories ORDER BY id").all(),
+    });
+    const before = snapshot();
+
+    const result = migrateDatabase(sqlite, { backupDir });
+
+    expect(result).toMatchObject({ status: "migrated", applied: 1 });
+    expect(backupFiles()).toHaveLength(1);
+    expect(snapshot()).toEqual(before);
+    expect(sqlite.pragma("foreign_key_check")).toEqual([]);
+    expect(sqlite.pragma("foreign_keys", { simple: true })).toBe(1n);
+    expect(() => sqlite.prepare("DELETE FROM categories WHERE id = 'food'").run()).toThrow(
+      /FOREIGN KEY/,
+    );
+    expect(countPendingMigrations(sqlite)).toBe(0);
   });
 });
 
@@ -143,6 +202,32 @@ describe("migrateDatabase", () => {
 
     const columns = sqlite.prepare("SELECT name FROM pragma_table_info('notes')").pluck().all();
     expect(columns).toEqual(["id"]);
+  });
+});
+
+describe("a failing migration", () => {
+  it("is rolled back entirely, leaving the schema and the data as they were", () => {
+    const sqlite = openFileDatabase();
+    migrateDatabase(sqlite, { backupDir, migrationsFolder: writeMigrations([FIRST]) });
+    sqlite.prepare("INSERT INTO notes (id) VALUES ('fictitious-note')").run();
+    const failing = {
+      tag: "0001_failing",
+      when: 2_000,
+      sql: "CREATE TABLE `extra` (`id` text);--> statement-breakpoint\nINSERT INTO `missing_table` VALUES (1);",
+    };
+
+    expect(() =>
+      migrateDatabase(sqlite, { backupDir, migrationsFolder: writeMigrations([FIRST, failing]) }),
+    ).toThrow();
+
+    const tables = sqlite
+      .prepare("SELECT name FROM sqlite_schema WHERE type = 'table' ORDER BY name")
+      .pluck()
+      .all();
+    expect(tables).toEqual(["__drizzle_migrations", "notes"]);
+    expect(sqlite.prepare("SELECT id FROM notes").pluck().all()).toEqual(["fictitious-note"]);
+    expect(countPendingMigrations(sqlite, writeMigrations([FIRST, failing]))).toBe(1);
+    expect(backupFiles()).toHaveLength(1);
   });
 });
 

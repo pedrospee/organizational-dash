@@ -148,7 +148,7 @@ describe("currency conversion (BR-13, BR-16, BR-18)", () => {
     expect(conversion.exchangeRate).toMatchObject({
       baseCurrency: "EUR",
       quoteCurrency: "BRL",
-      rate: "6.000000",
+      rate: "6",
       source: "TRANSACTION",
       recordedAt: demoRecordedAt,
     });
