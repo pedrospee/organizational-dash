@@ -25,19 +25,17 @@ describe("findApplicableRate", () => {
   it("uses the historical rate for a past date", () => {
     const rate = findApplicableRate(rates, "EUR", "BRL", parseLocalDate("2026-07-15"));
 
-    expect(rate?.rate).toBe("6.00");
+    expect(rate?.rate).toBe("6");
   });
 
   it("uses the latest rate for the current date, preferring the last one recorded that day", () => {
     const rate = findApplicableRate(rates, "EUR", "BRL", parseLocalDate("2026-09-26"));
 
-    expect(rate?.rate).toBe("7.10");
+    expect(rate?.rate).toBe("7.1");
   });
 
   it("finds a EUR/BRL rate when asked for BRL/EUR", () => {
-    expect(findApplicableRate(rates, "BRL", "EUR", parseLocalDate("2026-07-15"))?.rate).toBe(
-      "6.00",
-    );
+    expect(findApplicableRate(rates, "BRL", "EUR", parseLocalDate("2026-07-15"))?.rate).toBe("6");
   });
 
   it("returns undefined before the first known rate", () => {

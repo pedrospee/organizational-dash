@@ -4,12 +4,15 @@
 export { type Decimal, formatDecimal, parseDecimal } from "./decimal.ts";
 export { DomainError, type DomainErrorCode } from "./domain-error.ts";
 export {
+  CANONICAL_EXCHANGE_RATE_PAIR,
   calculateExecutedRate,
   convertMoney,
   createExchangeRate,
+  createManualExchangeRate,
   EXCHANGE_RATE_SOURCES,
   type ExchangeRate,
   type ExchangeRateSource,
+  invertExchangeRate,
 } from "./exchange/exchange-rate.ts";
 export { convertMoneyOnDate, findApplicableRate } from "./exchange/exchange-rate-history.ts";
 export {
